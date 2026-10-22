@@ -1,4 +1,5 @@
 use crate::aa;
+use crate::aitracker;
 use crate::coding_agents;
 use crate::deepswe;
 
@@ -23,7 +24,7 @@ pub fn aa_matches_filter(model: &aa::Model, tokens: &[String]) -> bool {
         None => "",
     };
     let lowered: Vec<String> = [
-        model.display_id(),
+        model.slug.as_str(),
         model.name.as_str(),
         model.provider(),
         model.release_date.as_deref().unwrap_or(""),
@@ -100,6 +101,33 @@ pub(super) fn count_matching_deepswe(rows: &[deepswe::Row], query: &str) -> usiz
     }
     rows.iter()
         .filter(|row| deepswe_matches_filter(row, &tokens))
+        .count()
+}
+
+pub fn tracker_matches_filter(page: &aitracker::ModelPage, tokens: &[String]) -> bool {
+    let lowered: Vec<String> = [
+        page.slug.as_str(),
+        page.model.as_str(),
+        page.maker().unwrap_or(""),
+        page.stage().unwrap_or(""),
+        page.last_seen_at.as_deref().unwrap_or(""),
+    ]
+    .iter()
+    .map(|f| f.to_lowercase())
+    .collect();
+    tokens
+        .iter()
+        .all(|token| token_in_lowered_fields(token, &lowered))
+}
+
+pub(super) fn count_matching_tracker(pages: &[aitracker::ModelPage], query: &str) -> usize {
+    let tokens = filter_tokens(query);
+    if tokens.is_empty() {
+        return pages.len();
+    }
+    pages
+        .iter()
+        .filter(|page| tracker_matches_filter(page, &tokens))
         .count()
 }
 

@@ -1,6 +1,7 @@
 use std::collections::HashMap;
 use std::time::Instant;
 
+use ratatui::layout::Rect;
 use ratatui::widgets::TableState;
 
 use crate::board::{Board, Data, Status};
@@ -23,12 +24,19 @@ pub struct AppState {
     pub filters: HashMap<Board, String>,
     pub filter_editing: bool,
     pub help_open: bool,
+    /// First visible line of the help overlay; clamped when rendered.
+    pub help_scroll: u16,
     pub compact: bool,
     pub aa_sort: AaSort,
     pub agent_sort: AgentSort,
     pub deepswe_sort: DeepSweSort,
+    pub tracker_sort: TrackerSort,
     filter_caches: HashMap<Board, FilterCache>,
     pub copy_feedback_at: Option<Instant>,
+    /// Tab bar area and each tab's `[start, end)` columns from the last
+    /// render, for mouse hit-testing.
+    tab_bar: Rect,
+    tab_spans: Vec<(u16, u16)>,
 }
 
 impl AppState {
@@ -43,6 +51,7 @@ impl AppState {
             filters: HashMap::new(),
             filter_editing: false,
             help_open: false,
+            help_scroll: 0,
             compact: false,
             aa_sort: AaSort {
                 key: AaKey::Intelligence,
@@ -56,8 +65,11 @@ impl AppState {
                 key: DeepSweKey::Pass,
                 dir: SortDir::Desc,
             },
+            tracker_sort: TrackerSort { dir: SortDir::Desc },
             filter_caches: HashMap::new(),
             copy_feedback_at: None,
+            tab_bar: Rect::default(),
+            tab_spans: Vec::new(),
         }
     }
 
@@ -70,6 +82,28 @@ impl AppState {
 
     pub fn toggle_help(&mut self) {
         self.help_open = !self.help_open;
+        self.help_scroll = 0;
+    }
+
+    pub fn scroll_help(&mut self, delta: i32) {
+        let next = i64::from(self.help_scroll) + i64::from(delta);
+        self.help_scroll = next.clamp(0, i64::from(u16::MAX)) as u16;
+    }
+
+    pub(super) fn set_tab_spans(&mut self, bar: Rect, spans: Vec<(u16, u16)>) {
+        self.tab_bar = bar;
+        self.tab_spans = spans;
+    }
+
+    /// Index of the board whose tab was drawn at this cell, if any.
+    pub fn tab_at(&self, column: u16, row: u16) -> Option<usize> {
+        let bar = self.tab_bar;
+        if row < bar.y || row >= bar.y.saturating_add(bar.height) {
+            return None;
+        }
+        self.tab_spans
+            .iter()
+            .position(|&(start, end)| (start..end).contains(&column))
     }
 
     pub fn close_help(&mut self) {
@@ -82,6 +116,9 @@ impl AppState {
 
     pub fn toggle_view(&mut self) {
         let board = self.current_board();
+        if !board.has_chart() {
+            return;
+        }
         let next = match self.current_view() {
             View::Table => View::Chart,
             View::Chart => View::Table,
@@ -186,6 +223,7 @@ impl AppState {
             Some(Status::Loaded(Data::Aa(v))) => count_matching_aa(v, query),
             Some(Status::Loaded(Data::AaAgents(v))) => count_matching_agents(v, query),
             Some(Status::Loaded(Data::DeepSwe(v))) => count_matching_deepswe(v, query),
+            Some(Status::Loaded(Data::Tracker(v))) => count_matching_tracker(v, query),
             _ => 0,
         }
     }
@@ -355,6 +393,11 @@ impl AppState {
                     }
                 }
             }
+            Board::Tracker => {
+                if key == 't' {
+                    self.tracker_sort.dir = self.tracker_sort.dir.toggle();
+                }
+            }
         }
         self.resort_current();
     }
@@ -371,6 +414,9 @@ impl AppState {
             Some(Status::Loaded(Data::DeepSwe(rows))) => {
                 rows.get(data_idx).map(|r| r.display_model())
             }
+            Some(Status::Loaded(Data::Tracker(pages))) => {
+                pages.get(data_idx).map(|p| p.model.clone())
+            }
             _ => None,
         }
     }
@@ -380,6 +426,7 @@ impl AppState {
             Board::Aa => self.aa_sort.dir = self.aa_sort.dir.toggle(),
             Board::AaAgents => self.agent_sort.dir = self.agent_sort.dir.toggle(),
             Board::DeepSwe => self.deepswe_sort.dir = self.deepswe_sort.dir.toggle(),
+            Board::Tracker => self.tracker_sort.dir = self.tracker_sort.dir.toggle(),
         }
         self.resort_current();
     }
@@ -387,7 +434,13 @@ impl AppState {
     fn resort_current(&mut self) {
         let board = self.current_board();
         if let Some(Status::Loaded(data)) = self.status.get_mut(&board) {
-            sort_with(data, &self.aa_sort, &self.agent_sort, &self.deepswe_sort);
+            sort_with(
+                data,
+                &self.aa_sort,
+                &self.agent_sort,
+                &self.deepswe_sort,
+                &self.tracker_sort,
+            );
         }
         self.filter_caches.remove(&board);
         let has_rows = self.row_count(board) > 0;
@@ -397,7 +450,13 @@ impl AppState {
     }
 
     fn sort_data(&self, data: &mut Data) {
-        sort_with(data, &self.aa_sort, &self.agent_sort, &self.deepswe_sort);
+        sort_with(
+            data,
+            &self.aa_sort,
+            &self.agent_sort,
+            &self.deepswe_sort,
+            &self.tracker_sort,
+        );
     }
 
     /// Return cached filter indices for the given board. Rebuilds if query changed.
@@ -442,6 +501,19 @@ impl AppState {
                         rows.iter()
                             .enumerate()
                             .filter(|(_, r)| deepswe_matches_filter(r, &tokens))
+                            .map(|(i, _)| i)
+                            .collect()
+                    }
+                }
+                Some(Status::Loaded(Data::Tracker(pages))) => {
+                    let tokens = filter_tokens(query);
+                    if tokens.is_empty() {
+                        (0..pages.len()).collect()
+                    } else {
+                        pages
+                            .iter()
+                            .enumerate()
+                            .filter(|(_, p)| tracker_matches_filter(p, &tokens))
                             .map(|(i, _)| i)
                             .collect()
                     }
@@ -651,17 +723,17 @@ mod tests {
         let mut app = AppState::new();
         let mut m1 = aa_model("claude", "Claude", "Anthropic");
         m1.intelligence_index = Some(60.0);
-        m1.price_1m_blended = Some(5.0);
+        m1.price_1m_output_tokens = Some(40.0);
         let mut m2 = aa_model("gpt", "GPT", "OpenAI");
         m2.intelligence_index = Some(50.0);
-        m2.price_1m_blended = Some(1.0);
+        m2.price_1m_output_tokens = Some(3.0);
         app.set_status(Board::Aa, Status::Loaded(Data::Aa(vec![m1, m2])));
 
         // Initially sorted by intelligence desc: [claude(60), gpt(50)]
         let indices = app.filter_cache(Board::Aa, "").to_vec();
         assert_eq!(indices, &[0, 1]);
 
-        // Switch sort to price (ascending) — data re-sorted to [gpt($1), claude($5)]
+        // Switch sort to price (ascending) — data re-sorted to [gpt, claude]
         app.cycle_sort('p');
 
         // Cache should be invalidated; filter should see the new order

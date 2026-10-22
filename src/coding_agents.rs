@@ -31,6 +31,17 @@ pub struct AgentRow {
     pub display: AgentDisplay,
     #[serde(default)]
     pub mean: AgentMean,
+    /// Creators of the model the agent ran, with AA's display name and color.
+    #[serde(default, rename = "modelCreators")]
+    pub model_creators: Vec<ModelCreator>,
+}
+
+#[derive(Debug, Clone, Default, Deserialize)]
+pub struct ModelCreator {
+    #[serde(default)]
+    pub name: Option<String>,
+    #[serde(default)]
+    pub color: Option<String>,
 }
 
 #[derive(Debug, Clone, Default, Deserialize)]
@@ -87,11 +98,21 @@ impl AgentRow {
                 .creator
                 .as_ref()
                 .and_then(|creator| creator.model.as_deref()),
+            self.model_creators
+                .first()
+                .and_then(|creator| creator.name.as_deref()),
             self.host_short_name.as_deref(),
             self.host_name.as_deref(),
             self.provider.as_deref(),
         ])
         .unwrap_or("?")
+    }
+
+    /// AA's hex color for the model creator, when the row carries one.
+    pub fn provider_color(&self) -> Option<&str> {
+        self.model_creators
+            .first()
+            .and_then(|creator| creator.color.as_deref())
     }
 
     pub fn label(&self) -> String {
@@ -149,6 +170,20 @@ mod tests {
             .find(|r| r.id == "cursor-cli")
             .expect("fixture should include Cursor CLI");
         assert_eq!(cursor.provider(), "Anthropic");
+    }
+
+    #[test]
+    fn current_rows_name_the_model_creator() {
+        // AA's current rows drop `display.creator` and carry `modelCreators`;
+        // `provider` is only a lowercase id there.
+        let html = include_str!("../tests/fixtures/coding_agents.html");
+        let rows = parse(html).expect("parse committed fixture");
+        let grok = rows
+            .iter()
+            .find(|r| r.id == "grok-build")
+            .expect("fixture should include Grok Build");
+        assert_eq!(grok.provider(), "SpaceXAI");
+        assert_eq!(grok.provider_color(), Some("#736cd3"));
     }
 
     #[test]

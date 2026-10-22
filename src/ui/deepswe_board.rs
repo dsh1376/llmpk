@@ -2,15 +2,15 @@ use ratatui::{
     layout::{Constraint, Rect},
     style::{Color, Style, Stylize},
     text::Line,
-    widgets::{Block, Borders, Cell, Paragraph, Row, Table, Wrap},
+    widgets::{Cell, Paragraph, Row, Table, Wrap},
     Frame,
 };
 
 use super::chart::{chart_capacity, render_metric_chart, ChartPreference, ChartRow};
 use super::{
     accent_color_for_provider, color_for_seed, deepswe_metric, detail_line, fmt_compact_f,
-    fmt_duration, fmt_f, fmt_price, header_cell, highlight_matches, price_color, push_unique,
-    score_color, selected_row_style, truncate, AppState, DeepSweKey,
+    fmt_duration, fmt_f, fmt_price, header_cell, header_row_style, highlight_matches, panel,
+    price_color, push_unique, score_color, selected_row_style, truncate, AppState, DeepSweKey,
 };
 use crate::board::Board;
 use crate::deepswe;
@@ -116,7 +116,13 @@ pub(super) fn render_deepswe_table(
     compact: bool,
 ) {
     let columns = deepswe_columns(area.width, sort_key);
-    let header = Row::new(columns.iter().map(|column| header_cell(column.header())));
+    let sorted = deepswe_column_for_key(sort_key);
+    let header = Row::new(
+        columns
+            .iter()
+            .map(|column| header_cell(column.header(), *column == sorted)),
+    )
+    .style(header_row_style());
 
     let table_rows = indices.iter().enumerate().filter_map(|(i, &idx)| {
         all_rows.get(idx).map(|row| {
@@ -136,7 +142,7 @@ pub(super) fn render_deepswe_table(
         .header(header.height(1))
         .row_highlight_style(selected_row_style())
         .highlight_symbol("> ")
-        .block(Block::default().borders(Borders::ALL).title(title))
+        .block(panel(title))
         .column_spacing(spacing);
 
     let st = table_state.entry(board).or_default();
@@ -156,7 +162,7 @@ fn deepswe_cell(
         DeepSweColumn::Model => Cell::from(highlight_matches(
             &row.display_model(),
             filter_tokens,
-            Style::default().bold(),
+            Style::default(),
         )),
         DeepSweColumn::Pass => {
             let pct = row.pass_rate.map(|v| v * 100.0);
@@ -270,7 +276,7 @@ pub(super) fn render_deepswe_detail(frame: &mut Frame, area: Rect, row: Option<&
     };
 
     let p = Paragraph::new(lines)
-        .block(Block::default().borders(Borders::ALL).title("Selected"))
+        .block(panel("Selected"))
         .wrap(Wrap { trim: true });
     frame.render_widget(p, area);
 }

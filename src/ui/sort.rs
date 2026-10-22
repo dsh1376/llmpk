@@ -1,6 +1,7 @@
 use std::cmp::Ordering;
 
 use crate::aa;
+use crate::aitracker;
 use crate::coding_agents;
 use crate::deepswe;
 
@@ -13,8 +14,8 @@ pub enum SortDir {
 impl SortDir {
     pub fn arrow(self) -> &'static str {
         match self {
-            SortDir::Desc => "v",
-            SortDir::Asc => "^",
+            SortDir::Desc => "↓",
+            SortDir::Asc => "↑",
         }
     }
     pub fn toggle(self) -> Self {
@@ -71,6 +72,12 @@ pub struct DeepSweSort {
     pub dir: SortDir,
 }
 
+/// The tracker board sorts only by last-seen time.
+#[derive(Debug, Clone)]
+pub struct TrackerSort {
+    pub dir: SortDir,
+}
+
 // ── Sort functions ───────────────────────────────────────────────────
 
 pub fn sort_with(
@@ -78,11 +85,13 @@ pub fn sort_with(
     aa_sort: &AaSort,
     agent_sort: &AgentSort,
     deepswe_sort: &DeepSweSort,
+    tracker_sort: &TrackerSort,
 ) {
     match data {
         crate::board::Data::Aa(models) => sort_aa(models, aa_sort),
         crate::board::Data::AaAgents(rows) => sort_agents(rows, agent_sort),
         crate::board::Data::DeepSwe(rows) => sort_deepswe(rows, deepswe_sort),
+        crate::board::Data::Tracker(pages) => sort_tracker(pages, tracker_sort),
     }
 }
 
@@ -100,9 +109,9 @@ pub fn aa_metric(m: &aa::Model, key: AaKey) -> Option<f64> {
     match key {
         AaKey::Intelligence => m.intelligence_index,
         AaKey::Speed => m.speed(),
-        AaKey::Price => m.price_1m_blended,
+        AaKey::Price => m.price_1m_blended(),
         AaKey::Context => m.context_window_tokens.map(|x| x as f64),
-        AaKey::Cache => m.cache_hit_discount,
+        AaKey::Cache => m.cache_hit_discount(),
     }
 }
 
@@ -145,6 +154,14 @@ pub fn deepswe_metric(row: &deepswe::Row, key: DeepSweKey) -> Option<f64> {
         DeepSweKey::Tokens => row.total_tokens(),
         DeepSweKey::Steps => row.mean_agent_steps,
     }
+}
+
+fn sort_tracker(pages: &mut [aitracker::ModelPage], sort: &TrackerSort) {
+    pages.sort_by(|a, b| {
+        let av = a.last_seen_unix().map(|t| t as f64);
+        let bv = b.last_seen_unix().map(|t| t as f64);
+        cmp_opt_for_dir(av, bv, sort.dir)
+    });
 }
 
 fn cmp_opt_for_dir(a: Option<f64>, b: Option<f64>, dir: SortDir) -> Ordering {

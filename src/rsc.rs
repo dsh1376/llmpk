@@ -17,18 +17,40 @@ static CLIENT: LazyLock<Client> = LazyLock::new(|| {
         .expect("building reqwest client")
 });
 
-pub fn fetch_text(url: &str) -> Result<String> {
-    CLIENT
-        .get(url)
-        .send()
-        .with_context(|| format!("requesting {url}"))?
-        .error_for_status()
-        .with_context(|| format!("non-2xx from {url}"))?
-        .text()
-        .context("reading response body")
+/// A non-2xx response. Kept as a type so retry logic can read the status
+/// instead of parsing the message.
+#[derive(Debug)]
+pub struct HttpStatusError {
+    pub status: reqwest::StatusCode,
+    pub url: String,
 }
 
-/// Fetch with retry for transient failures (timeout, connection reset, 5xx).
+impl std::fmt::Display for HttpStatusError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        // Status first: the error view may only have room for one line.
+        write!(f, "HTTP {} from {}", self.status, self.url)
+    }
+}
+
+impl std::error::Error for HttpStatusError {}
+
+pub fn fetch_text(url: &str) -> Result<String> {
+    let resp = CLIENT
+        .get(url)
+        .send()
+        .with_context(|| format!("requesting {url}"))?;
+    let status = resp.status();
+    if !status.is_success() {
+        return Err(HttpStatusError {
+            status,
+            url: url.to_string(),
+        }
+        .into());
+    }
+    resp.text().context("reading response body")
+}
+
+/// Fetch with retry for transient failures (see `is_transient`).
 /// Retries up to 2 times with 1s/2s backoff.
 pub fn fetch_text_retry(url: &str) -> Result<String> {
     let delays = [Duration::from_secs(1), Duration::from_secs(2)];
@@ -49,14 +71,17 @@ pub fn fetch_text_retry(url: &str) -> Result<String> {
     Err(last_err.unwrap_or_else(|| anyhow!("fetch failed after retries")))
 }
 
+/// Server errors (any 5xx, including Cloudflare's 52x) and network faults are
+/// worth a retry; client errors and parse failures are not.
 fn is_transient(err: &anyhow::Error) -> bool {
-    let msg = format!("{err:#}");
-    msg.contains("timed out")
-        || msg.contains("connection closed")
-        || msg.contains("connection reset")
-        || msg.contains("502")
-        || msg.contains("503")
-        || msg.contains("504")
+    err.chain().any(|cause| {
+        if let Some(http) = cause.downcast_ref::<HttpStatusError>() {
+            return http.status.is_server_error();
+        }
+        cause
+            .downcast_ref::<reqwest::Error>()
+            .is_some_and(|e| e.is_timeout() || e.is_connect() || e.is_request() || e.is_body())
+    })
 }
 
 static RSC_RE: LazyLock<Regex> = LazyLock::new(|| {
@@ -195,6 +220,15 @@ pub fn fetch_text_new_client(url: &str) -> Result<String> {
 
 /// Find the first balanced `[...]` array following the literal `"<key>":` in the stream.
 pub fn first_array_after<'a>(stream: &'a str, key: &str) -> Option<&'a str> {
+    balanced_after(stream, key, b'[', b']')
+}
+
+/// Find the first balanced `{...}` object following the literal `"<key>":` in the stream.
+pub fn first_object_after<'a>(stream: &'a str, key: &str) -> Option<&'a str> {
+    balanced_after(stream, key, b'{', b'}')
+}
+
+fn balanced_after<'a>(stream: &'a str, key: &str, open: u8, close: u8) -> Option<&'a str> {
     let needle = format!("\"{key}\":");
     let i = stream.find(&needle)?;
     let bytes = stream.as_bytes();
@@ -202,7 +236,7 @@ pub fn first_array_after<'a>(stream: &'a str, key: &str) -> Option<&'a str> {
     while start < bytes.len() && bytes[start].is_ascii_whitespace() {
         start += 1;
     }
-    if start >= bytes.len() || bytes[start] != b'[' {
+    if start >= bytes.len() || bytes[start] != open {
         return None;
     }
 
@@ -220,16 +254,15 @@ pub fn first_array_after<'a>(stream: &'a str, key: &str) -> Option<&'a str> {
             }
             continue;
         }
-        match b {
-            b'"' => in_str = true,
-            b'[' => depth += 1,
-            b']' => {
-                depth -= 1;
-                if depth == 0 {
-                    return Some(&stream[start..=j]);
-                }
+        if b == b'"' {
+            in_str = true;
+        } else if b == open {
+            depth += 1;
+        } else if b == close {
+            depth -= 1;
+            if depth == 0 {
+                return Some(&stream[start..=j]);
             }
-            _ => {}
         }
     }
     None
@@ -256,7 +289,7 @@ mod tests {
     #[test]
     fn decode_unicode_bmp() {
         let mut out = String::new();
-        decode_into(r#"Aé"#, &mut out);
+        decode_into(r#"A\u00e9"#, &mut out);
         assert_eq!(out, "Aé");
     }
 
@@ -264,7 +297,7 @@ mod tests {
     fn decode_utf16_surrogate_pair() {
         let mut out = String::new();
         // U+1F600 = 😀
-        decode_into(r#"😀"#, &mut out);
+        decode_into(r#"\uD83D\uDE00"#, &mut out);
         assert_eq!(out, "😀");
     }
 
@@ -355,6 +388,13 @@ mod tests {
     }
 
     #[test]
+    fn first_object_ignores_braces_in_strings() {
+        let stream = r#"x "meta": {"a":"}","b":{"c":1}} tail"#;
+        let result = first_object_after(stream, "meta");
+        assert_eq!(result, Some(r#"{"a":"}","b":{"c":1}}"#));
+    }
+
+    #[test]
     fn extract_stream_no_rsc_chunks() {
         let result = extract_stream("<html>no data here</html>");
         assert!(result.is_err());
@@ -367,7 +407,7 @@ mod tests {
         assert_eq!(result, "hello\nworld");
     }
 
-    const AA_URL: &str = "https://artificialanalysis.ai/";
+    const AA_URL: &str = "https://artificialanalysis.ai/leaderboards/models";
 
     /// Benchmark: fresh client per request (old) vs shared client (new).
     /// Run with: LLMPK_BENCH=1 cargo test bench_fetch -- --nocapture
@@ -423,10 +463,10 @@ mod tests {
             return;
         }
 
-        let html = match std::env::var("LLMPK_HOMEPAGE_FIXTURE") {
+        let html = match std::env::var("LLMPK_LEADERBOARD_FIXTURE") {
             Ok(path) => std::fs::read_to_string(&path).expect("fixture read"),
             Err(_) => {
-                println!("skipping bench_regex (set LLMPK_HOMEPAGE_FIXTURE)");
+                println!("skipping bench_regex (set LLMPK_LEADERBOARD_FIXTURE)");
                 return;
             }
         };
@@ -481,30 +521,60 @@ mod tests {
         );
     }
 
-    #[test]
-    fn is_transient_detects_timeouts_and_5xx() {
-        assert!(is_transient(&anyhow!("requesting https://x: timed out")));
-        assert!(is_transient(&anyhow!("connection closed")));
-        assert!(is_transient(&anyhow!("connection reset")));
-        assert!(is_transient(&anyhow!(
-            "non-2xx from https://x: 502 Bad Gateway"
-        )));
-        assert!(is_transient(&anyhow!(
-            "non-2xx from https://x: 503 Service Unavailable"
-        )));
-        assert!(is_transient(&anyhow!(
-            "non-2xx from https://x: 504 Gateway Timeout"
-        )));
+    /// Serve one canned HTTP response on a loopback port, then close.
+    fn serve_once(response: &'static str) -> String {
+        use std::io::{Read, Write};
+        let listener = std::net::TcpListener::bind("127.0.0.1:0").expect("bind loopback");
+        let addr = listener.local_addr().expect("local addr");
+        std::thread::spawn(move || {
+            if let Ok((mut stream, _)) = listener.accept() {
+                let mut buf = [0u8; 1024];
+                let _ = stream.read(&mut buf);
+                let _ = stream.write_all(response.as_bytes());
+            }
+        });
+        format!("http://{addr}/")
+    }
+
+    fn status_response(status: &'static str) -> &'static str {
+        match status {
+            "503" => {
+                "HTTP/1.1 503 Service Unavailable\r\ncontent-length: 0\r\nconnection: close\r\n\r\n"
+            }
+            "530" => {
+                "HTTP/1.1 530 Origin Unreachable\r\ncontent-length: 0\r\nconnection: close\r\n\r\n"
+            }
+            "404" => "HTTP/1.1 404 Not Found\r\ncontent-length: 0\r\nconnection: close\r\n\r\n",
+            _ => unreachable!(),
+        }
     }
 
     #[test]
-    fn is_transient_ignores_permanent_errors() {
+    fn server_errors_are_transient() {
+        for code in ["503", "530"] {
+            let err = fetch_text(&serve_once(status_response(code))).unwrap_err();
+            assert!(is_transient(&err), "{code}: {err:#}");
+            assert!(format!("{err:#}").starts_with(&format!("HTTP {code}")));
+        }
+    }
+
+    #[test]
+    fn client_errors_are_not_transient() {
+        let err = fetch_text(&serve_once(status_response("404"))).unwrap_err();
+        assert!(!is_transient(&err), "{err:#}");
+    }
+
+    #[test]
+    fn dropped_connections_are_transient() {
+        // The server closes without answering.
+        let err = fetch_text(&serve_once("")).unwrap_err();
+        assert!(is_transient(&err), "{err:#}");
+    }
+
+    #[test]
+    fn parse_errors_are_not_transient() {
         assert!(!is_transient(&anyhow!(
-            "non-2xx from https://x: 404 Not Found"
+            "no model rows found (timed out 503)"
         )));
-        assert!(!is_transient(&anyhow!(
-            "non-2xx from https://x: 403 Forbidden"
-        )));
-        assert!(!is_transient(&anyhow!("dns error")));
     }
 }

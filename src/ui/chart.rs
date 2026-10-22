@@ -2,11 +2,11 @@ use ratatui::{
     layout::Rect,
     style::{Color, Style, Stylize},
     text::{Line, Span},
-    widgets::{Block, Borders, Paragraph, Wrap},
+    widgets::{Paragraph, Wrap},
     Frame,
 };
 
-use super::{color_for_seed, truncate};
+use super::{color_for_seed, panel, truncate};
 
 const HEADER_LINES: u16 = 1;
 const RANK_WIDTH: usize = 3;
@@ -59,10 +59,8 @@ pub(super) fn render_metric_chart(
     rows: &[ChartRow],
     preference: ChartPreference,
 ) {
-    let block = Block::default()
-        .borders(Borders::ALL)
-        .title(title)
-        .title_bottom(preference.hint());
+    // The subtitle line already states the preference.
+    let block = panel(title);
     let inner = block.inner(area);
     frame.render_widget(block, area);
 
@@ -204,8 +202,8 @@ pub(super) fn chart_bar_len(
         ChartPreference::Lower => (max - value) / (max - min),
     };
     let bars = (normalized.clamp(0.0, 1.0) * width as f64).round() as usize;
-    // Don't show a bar if the value rounds to 0 bars
-    bars.min(width)
+    // Every real value draws at least one cell; an empty bar reads as no data.
+    bars.clamp(1, width)
 }
 
 pub(super) fn format_chart_number(value: f64) -> String {

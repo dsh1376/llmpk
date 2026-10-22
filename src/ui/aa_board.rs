@@ -2,15 +2,16 @@ use ratatui::{
     layout::{Constraint, Rect},
     style::{Color, Style, Stylize},
     text::Line,
-    widgets::{Block, Borders, Cell, Paragraph, Row, Table, Wrap},
+    widgets::{Cell, Paragraph, Row, Table, Wrap},
     Frame,
 };
 
 use super::chart::{chart_capacity, render_metric_chart, ChartPreference, ChartRow};
 use super::{
     aa_metric, accent_color_for_provider, color_from_hex, detail_line, fmt_f, fmt_percent,
-    fmt_price, fmt_tokens, header_cell, highlight_matches, price_color, push_unique,
-    readable_color_for_dark_bg, score_color, selected_row_style, truncate, AaKey, AppState,
+    fmt_price, fmt_tokens, header_cell, header_row_style, highlight_matches, panel, price_color,
+    push_unique, readable_color_for_dark_bg, score_color, selected_row_style, truncate, AaKey,
+    AppState,
 };
 use crate::aa;
 use crate::board::Board;
@@ -134,7 +135,13 @@ pub(super) fn render_aa_table(
     compact: bool,
 ) {
     let columns = aa_columns(area.width, sort_key);
-    let header = Row::new(columns.iter().map(|column| header_cell(column.header())));
+    let sorted = aa_column_for_key(sort_key);
+    let header = Row::new(
+        columns
+            .iter()
+            .map(|column| header_cell(column.header(), *column == sorted)),
+    )
+    .style(header_row_style());
 
     let rows = indices.iter().enumerate().filter_map(|(i, &idx)| {
         all_models.get(idx).map(|m| {
@@ -154,7 +161,7 @@ pub(super) fn render_aa_table(
         .header(header.height(1))
         .row_highlight_style(selected_row_style())
         .highlight_symbol("> ")
-        .block(Block::default().borders(Borders::ALL).title(title))
+        .block(panel(title))
         .column_spacing(spacing);
 
     let st = table_state.entry(board).or_default();
@@ -174,7 +181,7 @@ fn aa_cell(
         AaColumn::Model => Cell::from(highlight_matches(
             &model.name,
             filter_tokens,
-            Style::default().bold(),
+            Style::default(),
         )),
         AaColumn::Provider => Cell::from(model.provider().to_string())
             .style(provider_style(model.provider(), aa_model_color(model))),
@@ -183,13 +190,10 @@ fn aa_cell(
         AaColumn::Speed => {
             Cell::from(fmt_f(model.speed(), 0)).style(Style::default().fg(Color::Blue))
         }
-        AaColumn::Price => Cell::from(fmt_price(model.price_1m_blended, 2, "")).style(price_color(
-            model.price_1m_blended,
-            PRICE_LOW,
-            PRICE_HIGH,
-        )),
-        AaColumn::Cache => Cell::from(fmt_percent(model.cache_hit_discount)).style(score_color(
-            model.cache_hit_discount,
+        AaColumn::Price => Cell::from(fmt_price(model.price_1m_blended(), 2, ""))
+            .style(price_color(model.price_1m_blended(), PRICE_LOW, PRICE_HIGH)),
+        AaColumn::Cache => Cell::from(fmt_percent(model.cache_hit_discount())).style(score_color(
+            model.cache_hit_discount(),
             0.5,
             1.0,
         )),
@@ -219,8 +223,8 @@ pub(super) fn render_aa_detail(frame: &mut Frame, area: Rect, model: Option<&aa:
                 Style::default().fg(Color::Cyan).bold(),
             ),
             detail_line(
-                "ID",
-                model.display_id(),
+                "Slug",
+                model.slug.as_str(),
                 Style::default().fg(Color::DarkGray),
             ),
             Line::from(""),
@@ -241,12 +245,12 @@ pub(super) fn render_aa_detail(frame: &mut Frame, area: Rect, model: Option<&aa:
             ),
             detail_line(
                 "Blended",
-                fmt_price(model.price_1m_blended, 2, "/M"),
-                price_color(model.price_1m_blended, PRICE_LOW, PRICE_HIGH),
+                fmt_price(model.price_1m_blended(), 2, "/M"),
+                price_color(model.price_1m_blended(), PRICE_LOW, PRICE_HIGH),
             ),
             detail_line(
                 "No cache",
-                fmt_price(model.price_1m_blended_no_cache, 2, "/M"),
+                fmt_price(model.price_1m_blended_no_cache(), 2, "/M"),
                 Style::default().fg(Color::Gray),
             ),
             detail_line(
@@ -271,8 +275,8 @@ pub(super) fn render_aa_detail(frame: &mut Frame, area: Rect, model: Option<&aa:
             ),
             detail_line(
                 "Cache disc",
-                fmt_percent(model.cache_hit_discount),
-                score_color(model.cache_hit_discount, 0.5, 1.0),
+                fmt_percent(model.cache_hit_discount()),
+                score_color(model.cache_hit_discount(), 0.5, 1.0),
             ),
             detail_line(
                 "Context",
@@ -304,7 +308,7 @@ pub(super) fn render_aa_detail(frame: &mut Frame, area: Rect, model: Option<&aa:
     };
 
     let p = Paragraph::new(lines)
-        .block(Block::default().borders(Borders::ALL).title("Selected"))
+        .block(panel("Selected"))
         .wrap(Wrap { trim: true });
     frame.render_widget(p, area);
 }
@@ -332,7 +336,7 @@ pub(super) fn render_aa_chart(
                 value,
                 value_label: aa_chart_text_value(m, key),
                 color: aa_model_color(m),
-                color_seed: m.display_id().to_string(),
+                color_seed: m.slug.clone(),
             })
         })
         .take(max_bars)
@@ -386,12 +390,12 @@ fn aa_chart_text_value(m: &aa::Model, key: AaKey) -> String {
     match key {
         AaKey::Intelligence => fmt_f(m.intelligence_index, 1),
         AaKey::Speed => format!("{} t/s", fmt_f(m.speed(), 0)),
-        AaKey::Price => fmt_price(m.price_1m_blended, 2, ""),
+        AaKey::Price => fmt_price(m.price_1m_blended(), 2, ""),
         AaKey::Context => m
             .context_window_tokens
             .map(fmt_tokens)
             .unwrap_or_else(|| "-".into()),
-        AaKey::Cache => fmt_percent(m.cache_hit_discount),
+        AaKey::Cache => fmt_percent(m.cache_hit_discount()),
     }
 }
 

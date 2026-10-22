@@ -1,26 +1,18 @@
 use crate::aa;
 use crate::coding_agents;
 
-pub fn aa_model(id: &str, name: &str, provider: &str) -> aa::Model {
+pub fn aa_model(slug: &str, name: &str, provider: &str) -> aa::Model {
     aa::Model {
-        id: id.to_string(),
-        slug: None,
+        slug: slug.to_string(),
         name: name.to_string(),
-        model_creators: Some(aa::Creator {
-            name: provider.to_string(),
-            color: None,
-        }),
+        creator_name: Some(provider.to_string()),
+        creator_color: None,
         intelligence_index: Some(50.0),
-        timescale: Some(aa::Timescale {
-            median_output_speed: Some(100.0),
-        }),
-        price_1m_blended: Some(1.0),
-        price_1m_blended_no_cache: Some(1.5),
+        median_output_speed: Some(100.0),
         price_1m_input_tokens: Some(1.0),
         price_1m_output_tokens: Some(3.0),
         cache_hit_price: Some(0.1),
         cache_write_price: Some(0.5),
-        cache_hit_discount: Some(0.9),
         context_window_tokens: Some(200_000),
         release_date: Some("2026-01-01".to_string()),
         is_open_weights: Some(false),
@@ -53,6 +45,7 @@ pub fn agent_row(id: &str, agent: &str, provider: &str) -> coding_agents::AgentR
             steps: Some(42.0),
             total_tokens: Some(1_500_000.0),
         },
+        model_creators: Vec::new(),
     }
 }
 

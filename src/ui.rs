@@ -2,7 +2,7 @@ use ratatui::{
     layout::{Constraint, Direction, Layout, Rect},
     style::{Color, Modifier, Style, Stylize},
     text::{Line, Span},
-    widgets::{Cell, TableState},
+    widgets::{Block, Borders, Cell, TableState},
     Frame,
 };
 
@@ -16,6 +16,7 @@ mod sort;
 pub mod state;
 #[cfg(test)]
 mod test_helpers;
+mod tracker_board;
 
 pub use sort::*;
 pub use state::*;
@@ -35,20 +36,18 @@ pub fn render(frame: &mut Frame, app: &mut AppState) {
     let chunks = Layout::default()
         .direction(Direction::Vertical)
         .constraints([
-            Constraint::Length(3),
-            Constraint::Length(3),
+            Constraint::Length(4),
             Constraint::Min(0),
             Constraint::Length(2),
         ])
         .split(frame.area());
 
-    chrome::render_tabs(frame, chunks[0], app);
-    chrome::render_header(frame, chunks[1], app);
-    render_body(frame, chunks[2], app);
-    chrome::render_footer(frame, chunks[3], app);
+    chrome::render_top(frame, chunks[0], app);
+    render_body(frame, chunks[1], app);
+    chrome::render_footer(frame, chunks[2], app);
 
     if app.is_help_open() {
-        chrome::render_help_overlay(frame, frame.area());
+        chrome::render_help_overlay(frame, frame.area(), &mut app.help_scroll);
     }
 }
 
@@ -159,11 +158,36 @@ fn render_body(frame: &mut Frame, area: Rect, app: &mut AppState) {
                 }
             }
         }
+        Some(Status::Loaded(Data::Tracker(pages))) => {
+            if indices.is_empty() && filter_is_active(&query) {
+                chrome::render_filter_empty(frame, area, &query);
+                return;
+            }
+            let selected = table_state
+                .get(&board)
+                .and_then(TableState::selected)
+                .unwrap_or(0);
+            let (table_area, detail_area) = split_tracker_body(area);
+            tracker_board::render_tracker_table(
+                frame,
+                table_area,
+                pages,
+                &indices,
+                table_state,
+                board,
+                &filter_tokens,
+                app.compact,
+            );
+            if let Some(detail_area) = detail_area {
+                let page = indices.get(selected).and_then(|&i| pages.get(i));
+                tracker_board::render_tracker_detail(frame, detail_area, page);
+            }
+        }
         Some(Status::Error(e)) => {
-            chrome::render_error(frame, area, e);
+            chrome::render_error(frame, area, board, e);
         }
         Some(Status::Loading) | None => {
-            chrome::render_loading(frame, area);
+            chrome::render_loading(frame, area, board);
         }
     }
 }
@@ -204,23 +228,58 @@ fn split_deepswe_body(area: Rect) -> (Rect, Option<Rect>) {
     (chunks[0], Some(chunks[1]))
 }
 
+fn split_tracker_body(area: Rect) -> (Rect, Option<Rect>) {
+    if area.width < 110 || area.height < 12 {
+        return (area, None);
+    }
+
+    let chunks = Layout::default()
+        .direction(Direction::Horizontal)
+        .constraints([Constraint::Min(72), Constraint::Length(38)])
+        .split(area);
+    (chunks[0], Some(chunks[1]))
+}
+
 pub(crate) fn push_unique<T: PartialEq>(items: &mut Vec<T>, item: T) {
     if !items.contains(&item) {
         items.push(item);
     }
 }
 
-pub(crate) fn header_cell(label: &str) -> Cell<'_> {
-    Cell::from(label).style(
-        Style::default()
-            .fg(Color::Black)
-            .bg(Color::Cyan)
-            .add_modifier(Modifier::BOLD),
-    )
+/// Background of the column-header bar; the row style fills the gaps
+/// between cells so the bar reads as one strip.
+const HEADER_BG: Color = Color::Rgb(0x2c, 0x32, 0x3a);
+/// Background of the selected row.
+const SELECTED_BG: Color = Color::Rgb(0x1f, 0x3a, 0x52);
+
+/// Column header label; the active sort column is drawn in the accent color.
+pub(crate) fn header_cell(label: &str, sorted: bool) -> Cell<'_> {
+    let fg = if sorted { Color::Cyan } else { Color::Gray };
+    Cell::from(label).style(Style::default().fg(fg).add_modifier(Modifier::BOLD))
+}
+
+/// Bordered panel shared by tables, charts, and detail panes. The border is
+/// dim so the data, not the frames, carries the color.
+pub(crate) fn panel<'a>(title: impl Into<String>) -> Block<'a> {
+    Block::default()
+        .borders(Borders::ALL)
+        .border_style(Style::default().fg(Color::DarkGray))
+        .title(Span::styled(
+            format!(" {} ", title.into()),
+            Style::default()
+                .fg(Color::Gray)
+                .add_modifier(Modifier::BOLD),
+        ))
+}
+
+pub(crate) fn header_row_style() -> Style {
+    Style::default().bg(HEADER_BG)
 }
 
 pub(crate) fn selected_row_style() -> Style {
-    Style::default().add_modifier(Modifier::BOLD)
+    Style::default()
+        .bg(SELECTED_BG)
+        .add_modifier(Modifier::BOLD)
 }
 
 pub(crate) fn color_for_seed(seed: &str) -> Color {
@@ -578,6 +637,17 @@ mod tests {
         assert_eq!(low_better, 12);
         assert_eq!(equal, 12);
         assert_eq!(missing, 0);
+
+        // The worst value in range still draws one cell, so its row does
+        // not read as missing data.
+        assert_eq!(
+            chart_bar_len(1.0, 1.0, 10.0, 12, ChartPreference::Higher),
+            1
+        );
+        assert_eq!(
+            chart_bar_len(10.0, 1.0, 10.0, 12, ChartPreference::Lower),
+            1
+        );
     }
 
     #[test]
@@ -850,5 +920,243 @@ mod tests {
         let text = rendered_text(terminal.backend());
 
         assert!(text.contains("1/5"));
+    }
+
+    fn tracker_page(
+        slug: &str,
+        model: &str,
+        maker: &str,
+        stage: &str,
+    ) -> crate::aitracker::ModelPage {
+        crate::aitracker::ModelPage {
+            slug: slug.to_string(),
+            model: model.to_string(),
+            maker: Some(maker.to_string()),
+            stage: Some(stage.to_string()),
+            last_seen_at: Some("2026-10-22T15:43:41.669Z".to_string()),
+            path: Some(format!("/{slug}")),
+            post_ids: vec!["1".to_string()],
+            event_ids: Vec::new(),
+        }
+    }
+
+    #[test]
+    fn mouse_hits_the_tab_under_the_cursor() {
+        let wide = ["1 AA", "2 AA Agents", "3 DeepSWE", "4 AI Tracker"];
+        let short = ["1 AA", "2 AAg", "3 DSwe", "4 AIT"];
+        for (width, labels) in [(120u16, wide), (44, short)] {
+            let mut app = AppState::new();
+            let mut terminal =
+                ratatui::Terminal::new(ratatui::backend::TestBackend::new(width, 30)).unwrap();
+            terminal.draw(|frame| render(frame, &mut app)).unwrap();
+            let tab_row = rendered_line(terminal.backend(), width as usize, 1);
+
+            for (idx, label) in labels.iter().enumerate() {
+                let byte = tab_row.find(label).unwrap_or_else(|| {
+                    panic!("{width} cols: tab bar should show {label:?}: {tab_row:?}")
+                });
+                let col = tab_row[..byte].chars().count();
+                for offset in 0..label.chars().count() {
+                    assert_eq!(
+                        app.tab_at((col + offset) as u16, 1),
+                        Some(idx),
+                        "{width} cols: column {} of {label:?}",
+                        col + offset
+                    );
+                }
+            }
+            // Space right of the last tab, and the info line below the tabs.
+            assert_eq!(app.tab_at(width - 3, 1), None);
+            assert_eq!(app.tab_at(3, 2), None);
+        }
+    }
+
+    #[test]
+    fn help_overlay_scrolls_to_its_last_line() {
+        let mut app = AppState::new();
+        app.toggle_help();
+        let mut terminal =
+            ratatui::Terminal::new(ratatui::backend::TestBackend::new(132, 30)).unwrap();
+        terminal.draw(|frame| render(frame, &mut app)).unwrap();
+        let text = rendered_text(terminal.backend());
+        assert!(text.contains("Boards"));
+        assert!(!text.contains("Press ?, h, or Esc to close"));
+
+        app.scroll_help(i32::MAX);
+        terminal.draw(|frame| render(frame, &mut app)).unwrap();
+        let text = rendered_text(terminal.backend());
+        assert!(text.contains("Ctrl-U"));
+        assert!(text.contains("Press ?, h, or Esc to close"));
+
+        // Scrolling back past the top stops at the first line.
+        app.scroll_help(i32::MIN);
+        terminal.draw(|frame| render(frame, &mut app)).unwrap();
+        assert!(rendered_text(terminal.backend()).contains("Navigation"));
+    }
+
+    #[test]
+    fn render_draws_tracker_board_without_chart_toggle() {
+        let mut app = AppState::new();
+        app.select_board(3);
+        app.set_status(
+            Board::Tracker,
+            Status::Loaded(Data::Tracker(vec![
+                tracker_page("minicpm-ocr-1.0", "MiniCPM-OCR 1.0", "OpenBMB", "leak"),
+                tracker_page("rerank-v5.0-fast", "rerank-v5.0-fast", "Cohere", "release"),
+            ])),
+        );
+        app.toggle_view();
+
+        let mut terminal =
+            ratatui::Terminal::new(ratatui::backend::TestBackend::new(132, 30)).unwrap();
+        terminal.draw(|frame| render(frame, &mut app)).unwrap();
+        let text = rendered_text(terminal.backend());
+
+        assert_eq!(app.current_view(), View::Table);
+        assert!(text.contains("AI Tracker (2)"));
+        assert!(text.contains("MiniCPM-OCR 1.0"));
+        assert!(text.contains("release"));
+        assert!(text.contains("2026-10-22 15:43 UTC"));
+        assert!(text.contains("sort: Last seen ↓"));
+        assert!(!text.contains("view:"));
+        assert!(!text.contains(" chart "));
+    }
+
+    #[test]
+    fn error_view_keeps_status_and_source_visible() {
+        let mut app = AppState::new();
+        app.select_board(3);
+        app.set_status(
+            Board::Tracker,
+            Status::Error(
+                "HTTP 530 <unknown status code> from https://live.aitracker.bot/api/model-pages"
+                    .to_string(),
+            ),
+        );
+
+        let mut terminal =
+            ratatui::Terminal::new(ratatui::backend::TestBackend::new(100, 24)).unwrap();
+        terminal.draw(|frame| render(frame, &mut app)).unwrap();
+        let text = rendered_text(terminal.backend());
+
+        assert!(text.contains("HTTP 530"));
+        assert!(text.contains("live.aitracker.bot/api/model-pages"));
+        assert!(text.contains("live.aitracker.bot  |  load failed"));
+        assert!(text.contains("press r to retry"));
+        assert!(text.contains("failed to load AI Tracker"));
+
+        app.set_status(Board::Tracker, Status::Loading);
+        terminal.draw(|frame| render(frame, &mut app)).unwrap();
+        let text = rendered_text(terminal.backend());
+        assert!(text.contains("loading AI Tracker"));
+        assert!(text.contains("fetching live.aitracker.bot"));
+    }
+
+    #[test]
+    fn header_fit_uses_display_width_not_bytes() {
+        let header_row = |query: &str, width: u16| {
+            let mut app = AppState::new();
+            app.set_status(
+                Board::Aa,
+                Status::Loaded(Data::Aa(vec![aa_model("m", "Model", "Provider")])),
+            );
+            app.begin_filter();
+            for c in query.chars() {
+                app.push_filter_char(c);
+            }
+            app.finish_filter();
+            let mut terminal =
+                ratatui::Terminal::new(ratatui::backend::TestBackend::new(width, 24)).unwrap();
+            terminal.draw(|frame| render(frame, &mut app)).unwrap();
+            rendered_line(terminal.backend(), width as usize, 2)
+        };
+        // Same display width, different byte length.
+        for width in 60..140 {
+            let ascii = header_row("eeeeee", width);
+            let accented = header_row("éééééé", width);
+            assert_eq!(
+                ascii.contains("sort:"),
+                accented.contains("sort:"),
+                "width {width}: {ascii:?} vs {accented:?}"
+            );
+            assert_eq!(ascii.contains("models"), accented.contains("models"));
+        }
+    }
+
+    #[test]
+    fn narrow_header_and_footer_drop_whole_items() {
+        let mut app = AppState::new();
+        app.set_status(
+            Board::Aa,
+            Status::Loaded(Data::Aa(vec![aa_model("m", "Model", "Provider")])),
+        );
+        let width = 64;
+        let mut terminal =
+            ratatui::Terminal::new(ratatui::backend::TestBackend::new(width, 14)).unwrap();
+        terminal.draw(|frame| render(frame, &mut app)).unwrap();
+        let backend = terminal.backend();
+
+        let header = rendered_line(backend, width as usize, 2);
+        assert!(
+            !header.trim_start_matches('│').starts_with("  |"),
+            "header starts with a separator: {header:?}"
+        );
+        assert!(header.contains("sort:"));
+
+        for row in [12, 13] {
+            let footer = rendered_line(backend, width as usize, row);
+            let trimmed = footer.trim_end();
+            assert!(
+                trimmed.chars().count() < width as usize,
+                "footer row {row} is clipped: {footer:?}"
+            );
+        }
+        let footer = rendered_line(backend, width as usize, 12);
+        assert!(footer.contains("help") && footer.contains("quit"));
+        assert!(
+            footer.contains("1/1"),
+            "position indicator kept: {footer:?}"
+        );
+    }
+
+    #[test]
+    fn agents_table_hides_release_column_without_dates() {
+        let render_header = |release_date: Option<&str>| {
+            let mut app = AppState::new();
+            app.select_board(1);
+            let mut row = agent_row("claude-code", "Claude Code", "Anthropic");
+            row.release_date = release_date.map(str::to_string);
+            app.set_status(Board::AaAgents, Status::Loaded(Data::AaAgents(vec![row])));
+            // Wide enough for the column, narrow enough to skip the detail pane.
+            let width = 128;
+            let mut terminal =
+                ratatui::Terminal::new(ratatui::backend::TestBackend::new(width, 24)).unwrap();
+            terminal.draw(|frame| render(frame, &mut app)).unwrap();
+            rendered_line(terminal.backend(), width as usize, 5)
+        };
+        assert!(render_header(Some("2026-01-01")).contains("Release"));
+        assert!(!render_header(None).contains("Release"));
+    }
+
+    #[test]
+    fn agents_view_fits_names_and_skips_opaque_ids() {
+        let mut app = AppState::new();
+        app.select_board(1);
+        let mut row = agent_row(
+            "a2c87c062f3cef73d8525e7578f14742",
+            "Antigravity CLI",
+            "Google",
+        );
+        row.release_date = None;
+        app.set_status(Board::AaAgents, Status::Loaded(Data::AaAgents(vec![row])));
+        let mut terminal =
+            ratatui::Terminal::new(ratatui::backend::TestBackend::new(140, 30)).unwrap();
+        terminal.draw(|frame| render(frame, &mut app)).unwrap();
+        let text = rendered_text(terminal.backend());
+
+        let table_row = rendered_line(terminal.backend(), 140, 6);
+        assert!(table_row.contains("Antigravity CLI"), "{table_row:?}");
+        assert!(!text.contains("a2c87c062f3c"), "hash id shown");
+        assert!(!text.contains("Release"), "empty release shown");
     }
 }

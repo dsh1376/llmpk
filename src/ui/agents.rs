@@ -2,15 +2,16 @@ use ratatui::{
     layout::{Constraint, Rect},
     style::{Color, Style, Stylize},
     text::Line,
-    widgets::{Block, Borders, Cell, Paragraph, Row, Table, Wrap},
+    widgets::{Cell, Paragraph, Row, Table, Wrap},
     Frame,
 };
 
 use super::chart::{chart_capacity, render_metric_chart, ChartPreference, ChartRow};
 use super::{
-    accent_color_for_provider, agent_metric, color_for_seed, detail_line, fmt_compact_f,
-    fmt_duration, fmt_f, fmt_price, header_cell, highlight_matches, price_color, push_unique,
-    score_color, selected_row_style, truncate, AgentKey, AppState,
+    accent_color_for_provider, agent_metric, color_for_seed, color_from_hex, detail_line,
+    fmt_compact_f, fmt_duration, fmt_f, fmt_price, header_cell, header_row_style,
+    highlight_matches, panel, price_color, push_unique, readable_color_for_dark_bg, score_color,
+    selected_row_style, truncate, AgentKey, AppState,
 };
 use crate::board::Board;
 use crate::coding_agents;
@@ -55,8 +56,9 @@ impl AgentColumn {
     fn width(self) -> Constraint {
         match self {
             AgentColumn::Index => Constraint::Length(3),
-            AgentColumn::Agent => Constraint::Min(12),
-            AgentColumn::Model => Constraint::Length(24),
+            // Fits the longest shipped agent names ("Antigravity CLI").
+            AgentColumn::Agent => Constraint::Length(16),
+            AgentColumn::Model => Constraint::Min(16),
             AgentColumn::Provider => Constraint::Length(12),
             AgentColumn::Score => Constraint::Length(7),
             AgentColumn::Pass => Constraint::Length(7),
@@ -139,8 +141,21 @@ pub(super) fn render_agents_table(
     filter_tokens: &[String],
     compact: bool,
 ) {
-    let columns = agent_columns(area.width, sort_key);
-    let header = Row::new(columns.iter().map(|column| header_cell(column.header())));
+    let mut columns = agent_columns(area.width, sort_key);
+    // AA stopped shipping agent release dates; skip a column of dashes.
+    let any_dates = indices
+        .iter()
+        .any(|&i| all_rows.get(i).is_some_and(|r| r.release_date.is_some()));
+    if !any_dates {
+        columns.retain(|column| *column != AgentColumn::Released);
+    }
+    let sorted = agent_column_for_key(sort_key);
+    let header = Row::new(
+        columns
+            .iter()
+            .map(|column| header_cell(column.header(), *column == sorted)),
+    )
+    .style(header_row_style());
 
     let table_rows = indices.iter().enumerate().filter_map(|(i, &idx)| {
         all_rows.get(idx).map(|row| {
@@ -160,7 +175,7 @@ pub(super) fn render_agents_table(
         .header(header.height(1))
         .row_highlight_style(selected_row_style())
         .highlight_symbol("> ")
-        .block(Block::default().borders(Borders::ALL).title(title))
+        .block(panel(title))
         .column_spacing(spacing);
 
     let st = table_state.entry(board).or_default();
@@ -256,48 +271,56 @@ pub(super) fn render_agent_detail(
 ) {
     let max = area.width.saturating_sub(4) as usize;
     let lines = match row {
-        Some(row) => vec![
-            Line::styled(truncate(row.agent(), max.max(8)), agent_name_style(row)),
-            detail_line("ID", &row.id, Style::default().fg(Color::DarkGray)),
-            Line::from(""),
-            detail_line("Model", row.model(), Style::default()),
-            detail_line(
-                "Provider",
-                row.provider(),
-                Style::default().fg(agent_provider_color(row).unwrap_or(Color::Magenta)),
-            ),
-            detail_line(
-                "Index",
-                fmt_pct(row.index_score, 1),
-                score_color_pct(row.index_score),
-            ),
-            detail_line(
-                "Pass@1",
-                fmt_pct(row.mean.reward, 1),
-                score_color_pct(row.mean.reward),
-            ),
-            detail_line(
-                "Cost",
-                fmt_price(row.mean.cost_usd, 2, "/task"),
-                price_color(row.mean.cost_usd, 1.0, 5.0),
-            ),
-            detail_line(
-                "Time",
-                fmt_duration(row.mean.agent_wall_time_sec),
-                Style::default().fg(Color::Blue),
-            ),
-            detail_line(
-                "Tokens",
-                fmt_compact_f(row.mean.total_tokens),
-                Style::default(),
-            ),
-            detail_line("Turns", fmt_f(row.mean.steps, 1), Style::default()),
-            detail_line(
-                "Release",
-                row.release_date.clone().unwrap_or_else(|| "-".into()),
-                Style::default().fg(Color::Gray),
-            ),
-        ],
+        Some(row) => {
+            let mut lines = vec![
+                Line::styled(
+                    truncate(row.agent(), max.max(8)),
+                    agent_name_style(row).bold(),
+                ),
+                Line::from(""),
+                detail_line("Model", row.model(), Style::default()),
+                detail_line(
+                    "Provider",
+                    row.provider(),
+                    Style::default().fg(agent_provider_color(row).unwrap_or(Color::Magenta)),
+                ),
+                detail_line(
+                    "Index",
+                    fmt_pct(row.index_score, 1),
+                    score_color_pct(row.index_score),
+                ),
+                detail_line(
+                    "Pass@1",
+                    fmt_pct(row.mean.reward, 1),
+                    score_color_pct(row.mean.reward),
+                ),
+                detail_line(
+                    "Cost",
+                    fmt_price(row.mean.cost_usd, 2, "/task"),
+                    price_color(row.mean.cost_usd, 1.0, 5.0),
+                ),
+                detail_line(
+                    "Time",
+                    fmt_duration(row.mean.agent_wall_time_sec),
+                    Style::default().fg(Color::Blue),
+                ),
+                detail_line(
+                    "Tokens",
+                    fmt_compact_f(row.mean.total_tokens),
+                    Style::default(),
+                ),
+                detail_line("Turns", fmt_f(row.mean.steps, 1), Style::default()),
+            ];
+            // AA no longer ships agent release dates; skip an empty line.
+            if let Some(date) = &row.release_date {
+                lines.push(detail_line(
+                    "Release",
+                    date,
+                    Style::default().fg(Color::Gray),
+                ));
+            }
+            lines
+        }
         None => vec![Line::styled(
             "No row selected",
             Style::default().fg(Color::DarkGray),
@@ -305,7 +328,7 @@ pub(super) fn render_agent_detail(
     };
 
     let p = Paragraph::new(lines)
-        .block(Block::default().borders(Borders::ALL).title("Selected"))
+        .block(panel("Selected"))
         .wrap(Wrap { trim: true });
     frame.render_widget(p, area);
 }
@@ -331,7 +354,7 @@ fn agent_chart_text_value(row: &coding_agents::AgentRow, key: AgentKey) -> Strin
 }
 
 fn agent_name_style(row: &coding_agents::AgentRow) -> Style {
-    let style = Style::default().bold();
+    let style = Style::default();
     if let Some(color) = agent_brand_color(row) {
         style.fg(color)
     } else {
@@ -340,7 +363,10 @@ fn agent_name_style(row: &coding_agents::AgentRow) -> Style {
 }
 
 fn agent_provider_color(row: &coding_agents::AgentRow) -> Option<Color> {
-    accent_color_for_provider(row.provider())
+    row.provider_color()
+        .and_then(color_from_hex)
+        .map(readable_color_for_dark_bg)
+        .or_else(|| accent_color_for_provider(row.provider()))
 }
 
 fn agent_series_color(row: &coding_agents::AgentRow) -> Color {
