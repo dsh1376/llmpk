@@ -10,7 +10,7 @@ A terminal TUI for browsing LLM and coding-agent leaderboards from one keyboard-
 No API keys. No headless browser. No JavaScript runtime. Just HTTP and regex.
 
 ```
-┌ llmpk v0.3.0 ────────────────────────────────────────────────────────────────────────────────────┐
+┌ llmpk v0.4.0 ────────────────────────────────────────────────────────────────────────────────────┐
 │ 1 AA   2 AA Agents   3 DeepSWE   4 AI Tracker                                                    │
 │artificialanalysis.ai/leaderboards/models  |  272 models  |  view: table  |  sort: Intelligence ↓ │
 └──────────────────────────────────────────────────────────────────────────────────────────────────┘
