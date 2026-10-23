@@ -9,9 +9,9 @@ use ratatui::{
 use super::chart::{chart_capacity, render_metric_chart, ChartPreference, ChartRow};
 use super::{
     accent_color_for_provider, agent_metric, color_for_seed, color_from_hex, detail_line,
-    fmt_compact_f, fmt_duration, fmt_f, fmt_price, header_cell, header_row_style,
+    finish_table, fmt_compact_f, fmt_duration, fmt_f, fmt_price, header_cell, header_row_style,
     highlight_matches, panel, price_color, push_unique, readable_color_for_dark_bg, score_color,
-    selected_row_style, table_hit, truncate, AgentKey, AppState, TableHit,
+    selected_row_style, truncate, AgentKey, AppState, TableHit,
 };
 use crate::board::Board;
 use crate::coding_agents;
@@ -193,12 +193,14 @@ pub(super) fn render_agents_table(
 
     let st = table_state.entry(board).or_default();
     frame.render_stateful_widget(table, area, st);
-    table_hit(
+    finish_table(
+        frame,
         area,
         &widths,
         spacing,
         st,
         columns.iter().map(|c| c.sort_key()).collect(),
+        indices.len(),
     )
 }
 

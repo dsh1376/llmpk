@@ -3,7 +3,7 @@ use ratatui::{
     layout::{Constraint, Direction, Layout, Rect},
     style::{Color, Modifier, Style, Stylize},
     text::{Line, Span},
-    widgets::{Block, Borders, Cell, TableState},
+    widgets::{Block, Borders, Cell, Scrollbar, ScrollbarOrientation, ScrollbarState, TableState},
     Frame,
 };
 
@@ -296,17 +296,69 @@ pub(crate) fn header_cell(label: &str, sorted: bool) -> Cell<'_> {
     Cell::from(label).style(Style::default().fg(fg).add_modifier(Modifier::BOLD))
 }
 
-/// Record where a bordered table drew its header and columns. Mirrors the
-/// `Table` layout: a two-cell gutter for the `"> "` highlight symbol when a
-/// row is selected, then the columns with `Flex::Start` and the spacing.
-pub(crate) fn table_hit(
+/// Draw a vertical scrollbar over the right border of `area`, for `total`
+/// lines of which `visible` show from `offset`. Nothing is drawn when
+/// everything fits. Returns the track's cells (one column wide).
+pub(crate) fn render_scrollbar(
+    frame: &mut Frame,
+    area: Rect,
+    total: usize,
+    visible: usize,
+    offset: usize,
+) -> Option<Rect> {
+    if total <= visible || visible == 0 || area.height == 0 {
+        return None;
+    }
+    // Positions run 0..=total-visible, so the thumb reaches the bottom on
+    // the last page and its length is the visible share.
+    let mut state = ScrollbarState::new(total - visible + 1)
+        .position(offset.min(total - visible))
+        .viewport_content_length(visible);
+    // Single-line track to match the panel borders it sits on.
+    let bar = Scrollbar::new(ScrollbarOrientation::VerticalRight)
+        .symbols(ratatui::symbols::scrollbar::VERTICAL)
+        .begin_symbol(None)
+        .end_symbol(None)
+        .track_style(Style::default().fg(Color::DarkGray))
+        .thumb_style(Style::default().fg(Color::Gray));
+    frame.render_stateful_widget(bar, area, &mut state);
+    Some(Rect {
+        x: area.right().saturating_sub(1),
+        width: 1,
+        ..area
+    })
+}
+
+/// Finish a bordered table: draw its scrollbar and record where it drew its
+/// header, columns, and rows for mouse hit-testing. Mirrors the `Table`
+/// layout: a two-cell gutter for the `"> "` highlight symbol when a row is
+/// selected, then the columns with `Flex::Start` and the spacing.
+pub(crate) fn finish_table(
+    frame: &mut Frame,
     area: Rect,
     widths: &[Constraint],
     spacing: u16,
     state: &TableState,
     sort_keys: Vec<Option<char>>,
+    total: usize,
 ) -> TableHit {
     let inner = area.inner(Margin::new(1, 1));
+    let rows = Rect {
+        y: inner.y.saturating_add(1),
+        height: inner.height.saturating_sub(1),
+        ..inner
+    };
+    let scroll_track = render_scrollbar(
+        frame,
+        Rect {
+            x: area.x,
+            width: area.width,
+            ..rows
+        },
+        total,
+        usize::from(rows.height),
+        state.offset(),
+    );
     let gutter = if state.selected().is_some() { 2 } else { 0 };
     let [_, columns_area] = Layout::horizontal([Constraint::Length(gutter), Constraint::Fill(0)])
         .areas(Rect::new(inner.x, 0, inner.width, 1));
@@ -316,12 +368,10 @@ pub(crate) fn table_hit(
         .split(columns_area);
     TableHit {
         header_y: inner.y,
-        rows: Rect {
-            y: inner.y.saturating_add(1),
-            height: inner.height.saturating_sub(1),
-            ..inner
-        },
+        rows,
         offset: state.offset(),
+        scroll_track,
+        total,
         columns: rects
             .iter()
             .zip(sort_keys)
@@ -1275,5 +1325,72 @@ mod tests {
         assert!(selected.contains(">"), "row 3 is highlighted: {selected:?}");
         // Sorted by speed, descending: 30, 20, 10.
         assert!(rendered_line(terminal.backend(), width as usize, 6).contains("Model 1"));
+    }
+
+    /// The table's right border column, from the first data row down.
+    fn scrollbar_column(
+        backend: &ratatui::backend::TestBackend,
+        x: u16,
+        rows: std::ops::Range<u16>,
+    ) -> String {
+        rows.map(|y| backend.buffer()[(x, y)].symbol().to_string())
+            .collect()
+    }
+
+    #[test]
+    fn long_tables_show_a_scrollbar_that_tracks_the_view() {
+        let mut app = AppState::new();
+        app.set_status(Board::Aa, Status::Loaded(Data::Aa(make_models(60))));
+        // 100x24: table panel spans rows 4..22, header at 5, data rows 6..21.
+        let mut terminal =
+            ratatui::Terminal::new(ratatui::backend::TestBackend::new(100, 24)).unwrap();
+        terminal.draw(|frame| render(frame, &mut app)).unwrap();
+        let bar = scrollbar_column(terminal.backend(), 99, 6..21);
+        assert!(bar.starts_with('█'), "thumb at the top: {bar:?}");
+        assert!(!bar.ends_with('█'), "track below the thumb: {bar:?}");
+
+        app.move_to_bottom();
+        terminal.draw(|frame| render(frame, &mut app)).unwrap();
+        let bar = scrollbar_column(terminal.backend(), 99, 6..21);
+        assert!(bar.ends_with('█'), "thumb at the bottom: {bar:?}");
+        assert!(!bar.starts_with('█'), "track above the thumb: {bar:?}");
+    }
+
+    #[test]
+    fn short_tables_hide_the_scrollbar() {
+        let mut app = AppState::new();
+        app.set_status(Board::Aa, Status::Loaded(Data::Aa(make_models(3))));
+        let mut terminal =
+            ratatui::Terminal::new(ratatui::backend::TestBackend::new(100, 24)).unwrap();
+        terminal.draw(|frame| render(frame, &mut app)).unwrap();
+        let bar = scrollbar_column(terminal.backend(), 99, 6..21);
+        assert!(!bar.contains('█'), "no thumb when everything fits: {bar:?}");
+    }
+
+    #[test]
+    fn clicking_the_scrollbar_jumps_to_that_part_of_the_table() {
+        let mut app = AppState::new();
+        app.set_status(Board::Aa, Status::Loaded(Data::Aa(make_models(60))));
+        let mut terminal =
+            ratatui::Terminal::new(ratatui::backend::TestBackend::new(100, 24)).unwrap();
+        terminal.draw(|frame| render(frame, &mut app)).unwrap();
+
+        // The track covers rows 6..=20 on the right border, column 99.
+        assert_eq!(app.hit_test(99, 6), Click::Row(0));
+        assert_eq!(app.hit_test(99, 20), Click::Row(59));
+        assert!(matches!(app.hit_test(99, 13), Click::Row(i) if (25..35).contains(&i)));
+        // The border above the track is not part of it.
+        assert_eq!(app.hit_test(99, 5), Click::Nothing);
+    }
+
+    #[test]
+    fn help_overlay_shows_a_scrollbar_when_it_overflows() {
+        let mut app = AppState::new();
+        app.toggle_help();
+        let mut terminal =
+            ratatui::Terminal::new(ratatui::backend::TestBackend::new(132, 30)).unwrap();
+        terminal.draw(|frame| render(frame, &mut app)).unwrap();
+        let text = rendered_text(terminal.backend());
+        assert!(text.contains('█'), "help overlay has a thumb");
     }
 }

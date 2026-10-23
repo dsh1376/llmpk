@@ -40,6 +40,7 @@ i/s/p/d/c sort  o asc/desc  m chart  / filter
 - **Metric sorting** — missing values stay last; cost-like metrics default to ascending when selected
 - **Compact mode** — `z` removes column spacing for narrow terminals
 - **Mouse support** — click a tab to switch boards, a column header to sort by it (click again to flip the direction), or a row to select it; the wheel scrolls the table
+- **Scrollbars** — long tables and the help overlay show a scrollbar on their right border; click or drag it to jump through the table
 - **Row position indicator** — table view footer shows selected row / visible row count
 - **OSC 52 copy** — press `y` to copy the selected model or agent label through terminal clipboard support
 
@@ -76,7 +77,7 @@ Requires Rust 1.88+ (`rust-version` in `Cargo.toml`; CI checks the floor).
 | `PgUp` / `PgDn` | Move by 10 rows |
 | `Home` / `End` (or `g` / `G`) | Jump to first / last row |
 | `?` or `h` | Toggle in-app help (lists every keybinding and explains each metric; scroll it with `j`/`k`, `PgUp`/`PgDn`, or the mouse wheel) |
-| Mouse click | Tab: switch board. Column header: sort by it. Row: select it |
+| Mouse click | Tab: switch board. Column header: sort by it. Row: select it. Scrollbar: jump there (drag to scrub) |
 | Mouse scroll | Scroll the table |
 
 ### Sorting

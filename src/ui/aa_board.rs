@@ -8,10 +8,10 @@ use ratatui::{
 
 use super::chart::{chart_capacity, render_metric_chart, ChartPreference, ChartRow};
 use super::{
-    aa_metric, accent_color_for_provider, color_from_hex, detail_line, fmt_f, fmt_percent,
-    fmt_price, fmt_tokens, header_cell, header_row_style, highlight_matches, panel, price_color,
-    push_unique, readable_color_for_dark_bg, score_color, selected_row_style, table_hit, truncate,
-    AaKey, AppState, TableHit,
+    aa_metric, accent_color_for_provider, color_from_hex, detail_line, finish_table, fmt_f,
+    fmt_percent, fmt_price, fmt_tokens, header_cell, header_row_style, highlight_matches, panel,
+    price_color, push_unique, readable_color_for_dark_bg, score_color, selected_row_style,
+    truncate, AaKey, AppState, TableHit,
 };
 use crate::aa;
 use crate::board::Board;
@@ -178,12 +178,14 @@ pub(super) fn render_aa_table(
 
     let st = table_state.entry(board).or_default();
     frame.render_stateful_widget(table, area, st);
-    table_hit(
+    finish_table(
+        frame,
         area,
         &widths,
         spacing,
         st,
         columns.iter().map(|c| c.sort_key()).collect(),
+        indices.len(),
     )
 }
 

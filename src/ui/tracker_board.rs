@@ -9,8 +9,8 @@ use ratatui::{
 };
 
 use super::{
-    accent_color_for_provider, color_for_seed, detail_line, header_cell, header_row_style,
-    highlight_matches, panel, selected_row_style, table_hit, truncate, TableHit,
+    accent_color_for_provider, color_for_seed, detail_line, finish_table, header_cell,
+    header_row_style, highlight_matches, panel, selected_row_style, truncate, TableHit,
 };
 use crate::aitracker;
 use crate::board::Board;
@@ -120,12 +120,14 @@ pub(super) fn render_tracker_table(
 
     let st = table_state.entry(board).or_default();
     frame.render_stateful_widget(table, area, st);
-    table_hit(
+    finish_table(
+        frame,
         area,
         &widths,
         spacing,
         st,
         columns.iter().map(|c| c.sort_key()).collect(),
+        indices.len(),
     )
 }
 

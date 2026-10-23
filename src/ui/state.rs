@@ -30,6 +30,10 @@ pub struct TableHit {
     pub offset: usize,
     /// Each column's `(x, width, sort key)`.
     pub columns: Vec<(u16, u16, Option<char>)>,
+    /// The scrollbar's track, when the table overflows.
+    pub scroll_track: Option<Rect>,
+    /// Visible (filtered) row count.
+    pub total: usize,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -62,6 +66,16 @@ pub struct AppState {
     tab_bar: Rect,
     tab_spans: Vec<(u16, u16)>,
     table_hit: Option<TableHit>,
+}
+
+/// Map a cell on the scrollbar track to the row at that share of the table.
+fn track_row(track: Rect, row: u16, total: usize) -> usize {
+    let last = total.saturating_sub(1);
+    if track.height <= 1 {
+        return 0;
+    }
+    let share = f64::from(row - track.y) / f64::from(track.height - 1);
+    ((share * last as f64).round() as usize).min(last)
 }
 
 impl AppState {
@@ -144,6 +158,11 @@ impl AppState {
                 .find(|&&(x, width, _)| column >= x && column < x.saturating_add(width))
                 .and_then(|&(_, _, key)| key)
                 .map_or(Click::Nothing, Click::Header);
+        }
+        if let Some(track) = hit.scroll_track {
+            if column == track.x && row >= track.y && row < track.bottom() {
+                return Click::Row(track_row(track, row, hit.total));
+            }
         }
         let rows = hit.rows;
         let in_rows =

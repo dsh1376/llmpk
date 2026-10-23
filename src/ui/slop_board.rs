@@ -8,10 +8,10 @@ use ratatui::{
 
 use super::chart::{chart_capacity, render_metric_chart, ChartPreference, ChartRow};
 use super::{
-    accent_color_for_provider, color_for_seed, detail_line, fmt_compact_f, fmt_duration, fmt_f,
-    fmt_price, fmt_tokens, header_cell, header_row_style, highlight_matches, panel, price_color,
-    push_unique, score_color, selected_row_style, slop_metric, table_hit, truncate, AppState,
-    SlopKey, TableHit,
+    accent_color_for_provider, color_for_seed, detail_line, finish_table, fmt_compact_f,
+    fmt_duration, fmt_f, fmt_price, fmt_tokens, header_cell, header_row_style, highlight_matches,
+    panel, price_color, push_unique, score_color, selected_row_style, slop_metric, truncate,
+    AppState, SlopKey, TableHit,
 };
 use crate::board::Board;
 use crate::slopalytics;
@@ -171,12 +171,14 @@ pub(super) fn render_slop_table(
 
     let st = table_state.entry(board).or_default();
     frame.render_stateful_widget(table, area, st);
-    table_hit(
+    finish_table(
+        frame,
         area,
         &widths,
         spacing,
         st,
         columns.iter().map(|c| c.sort_key()).collect(),
+        indices.len(),
     )
 }
 

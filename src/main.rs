@@ -236,6 +236,12 @@ fn handle_mouse(m: MouseEvent, app: &mut AppState, tx: &mpsc::Sender<Msg>) {
             Click::Row(idx) => app.select_row(idx),
             Click::Nothing => {}
         },
+        // Dragging along the scrollbar (or down the rows) scrubs the table.
+        MouseEventKind::Drag(MouseButton::Left) => {
+            if let Click::Row(idx) = app.hit_test(m.column, m.row) {
+                app.select_row(idx);
+            }
+        }
         _ => {}
     }
 }

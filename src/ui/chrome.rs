@@ -7,8 +7,8 @@ use ratatui::{
 };
 
 use super::{
-    aa_board, agents, filter_is_active, format_filter_label, frontier_board, panel, slop_board,
-    truncate, AppState, View, SPINNER_FRAMES, VERSION,
+    aa_board, agents, filter_is_active, format_filter_label, frontier_board, panel,
+    render_scrollbar, slop_board, truncate, AppState, View, SPINNER_FRAMES, VERSION,
 };
 use crate::board::{Board, Data, Status};
 
@@ -48,7 +48,10 @@ pub(super) fn render_help_overlay(frame: &mut Frame, area: Rect, scroll: &mut u1
         help_row("PgUp  PgDn", "Move by 10 rows"),
         help_row("Home  End  g  G", "Jump to first / last row"),
         help_row("mouse scroll", "Scroll the table (when supported)"),
-        help_row("mouse click", "Click a tab to switch boards"),
+        help_row(
+            "mouse click",
+            "Tab: switch board; header: sort; row: select; scrollbar: jump",
+        ),
         Line::from(""),
         Line::styled("View & sort", head),
         help_row("m", "Toggle table / chart view (not on AI Tracker)"),
@@ -133,6 +136,13 @@ pub(super) fn render_help_overlay(frame: &mut Frame, area: Rect, scroll: &mut u1
         .style(Style::default().fg(Color::Gray));
     let p = Paragraph::new(lines).block(block).scroll((*scroll, 0));
     frame.render_widget(p, popup);
+    render_scrollbar(
+        frame,
+        popup.inner(ratatui::layout::Margin::new(0, 1)),
+        usize::from(content_height),
+        usize::from(visible),
+        usize::from(*scroll),
+    );
 }
 
 fn help_row(keys: &str, desc: &str) -> Line<'static> {
