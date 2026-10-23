@@ -11,7 +11,7 @@ use super::{
     accent_color_for_provider, agent_metric, color_for_seed, color_from_hex, detail_line,
     fmt_compact_f, fmt_duration, fmt_f, fmt_price, header_cell, header_row_style,
     highlight_matches, panel, price_color, push_unique, readable_color_for_dark_bg, score_color,
-    selected_row_style, truncate, AgentKey, AppState,
+    selected_row_style, table_hit, truncate, AgentKey, AppState, TableHit,
 };
 use crate::board::Board;
 use crate::coding_agents;
@@ -37,6 +37,19 @@ pub(super) enum AgentColumn {
 }
 
 impl AgentColumn {
+    /// The sort key a click on this column's header selects.
+    fn sort_key(self) -> Option<char> {
+        match self {
+            AgentColumn::Score => Some('i'),
+            AgentColumn::Pass => Some('a'),
+            AgentColumn::Cost => Some('p'),
+            AgentColumn::Time => Some('t'),
+            AgentColumn::Tokens => Some('u'),
+            AgentColumn::Turns => Some('s'),
+            _ => None,
+        }
+    }
+
     fn header(self) -> &'static str {
         match self {
             AgentColumn::Index => "#",
@@ -140,7 +153,7 @@ pub(super) fn render_agents_table(
     sort_key: AgentKey,
     filter_tokens: &[String],
     compact: bool,
-) {
+) -> TableHit {
     let mut columns = agent_columns(area.width, sort_key);
     // AA stopped shipping agent release dates; skip a column of dashes.
     let any_dates = indices
@@ -171,7 +184,7 @@ pub(super) fn render_agents_table(
     let title = format!("AA Agents ({})", indices.len());
 
     let spacing = if compact { 0 } else { 1 };
-    let table = Table::new(table_rows, widths)
+    let table = Table::new(table_rows, widths.clone())
         .header(header.height(1))
         .row_highlight_style(selected_row_style())
         .highlight_symbol("> ")
@@ -180,6 +193,13 @@ pub(super) fn render_agents_table(
 
     let st = table_state.entry(board).or_default();
     frame.render_stateful_widget(table, area, st);
+    table_hit(
+        area,
+        &widths,
+        spacing,
+        st,
+        columns.iter().map(|c| c.sort_key()).collect(),
+    )
 }
 
 fn agent_cell(

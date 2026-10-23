@@ -10,18 +10,18 @@ A terminal TUI for browsing LLM and coding-agent leaderboards from one keyboard-
 No API keys. No headless browser. No JavaScript runtime. Just HTTP and regex.
 
 ```
-┌ llmpk v0.4.0 ────────────────────────────────────────────────────────────────────────────────────┐
-│ 1 AA   2 AA Agents   3 DeepSWE   4 AI Tracker                                                    │
+┌ llmpk v0.5.0 ────────────────────────────────────────────────────────────────────────────────────┐
+│ 1 AA   2 AA Agents   3 Slopalytics   4 FrontierCode   5 AI Tracker                               │
 │artificialanalysis.ai/leaderboards/models  |  272 models  |  view: table  |  sort: Intelligence ↓ │
 └──────────────────────────────────────────────────────────────────────────────────────────────────┘
 ┌ AA (272) ────────────────────────────────────────────────────────────────────────────────────────┐
 │  #   Model                                 Provider    Intel  t/s    $/M     Cache  Ctx     Open │
 │>  1  Claude Opus 5.5 (Max, Default Fallbac Anthropic   57.6   96     $2.94   95%    1M           │
-│   2  Claude Sonnet 5.5 (Max, Default Fallb Anthropic   56.0   134    $1.47   95%    1M           │
+│   2  Claude Sonnet 5.5 (Max, Default Fallb Anthropic   56.0   133    $1.47   95%    1M           │
 │   3  Claude Opus 5.5 (Xhigh, Default Fallb Anthropic   56.0   84     $2.94   95%    1M           │
 │   4  Muse Wonder Full (Max)                Meta        55.8   -      -       -      1M           │
 │   5  Claude Opus 5.5 (High, Default Fallba Anthropic   53.6   78     $2.94   95%    1M           │
-│   6  Claude Fable 5.1 (Max, Default Fallba Anthropic   53.4   69     $7.17   98%    1M           │
+│   6  Claude Fable 5.1 (Max, Default Fallba Anthropic   53.4   68     $7.17   98%    1M           │
 └──────────────────────────────────────────────────────────────────────────────────────────────────┘
 ? / h help  q quit  [ ] board  j/k row  g/G top/bot  r reload  y copy  1/272
 i/s/p/d/c sort  o asc/desc  m chart  / filter
@@ -29,7 +29,7 @@ i/s/p/d/c sort  o asc/desc  m chart  / filter
 
 ## Features
 
-- **4 boards** — Artificial Analysis model rankings, Artificial Analysis coding-agent rankings, the DeepSWE coding-agent benchmark, and the AI Tracker feed of new model releases and leaks
+- **5 boards** — Artificial Analysis model rankings, Artificial Analysis coding-agent rankings, Slopalytics cost and time per task by reasoning effort, the FrontierCode mergeability benchmark, and the AI Tracker feed of new model releases and leaks
 - **Background fetching** — every board starts loading on its own thread at launch; `r` refetches the current board without blocking the UI, and quitting never waits on a slow source
 - **AA price economics** — input / output / cache-hit / cache-write prices from AA, plus the 7:2:1 cache-hit:input:output blend, the no-cache 3:1 blend, and the cache discount derived from them; prices carry banded color and sub-cent values render as `<$0.01/M` instead of rounding to `$0.00`
 - **Release and leak feed** — the AI Tracker board lists each tracked model with its maker, stage (release in green, leak in yellow), age since last sighting, and a link to its evidence page
@@ -39,7 +39,7 @@ i/s/p/d/c sort  o asc/desc  m chart  / filter
 - **Responsive layout** — columns appear as the terminal widens (provider from 62 columns, cache from 70, context from 74, speed from 84, license from 98, release date from 110); the selected row gets a side detail pane once the terminal is wide enough for that board
 - **Metric sorting** — missing values stay last; cost-like metrics default to ascending when selected
 - **Compact mode** — `z` removes column spacing for narrow terminals
-- **Mouse support** — scroll with the mouse wheel, click a tab to switch boards
+- **Mouse support** — click a tab to switch boards, a column header to sort by it (click again to flip the direction), or a row to select it; the wheel scrolls the table
 - **Row position indicator** — table view footer shows selected row / visible row count
 - **OSC 52 copy** — press `y` to copy the selected model or agent label through terminal clipboard support
 
@@ -69,28 +69,31 @@ Requires Rust 1.88+ (`rust-version` in `Cargo.toml`; CI checks the floor).
 |-----|--------|
 | `q`, `Esc`, `Ctrl-C` | Quit |
 | `[` / `]` | Previous / next board |
-| `1`, `2`, `3`, `4` | Jump to AA / AA Agents / DeepSWE / AI Tracker |
+| `1` - `5` | Jump to AA / AA Agents / Slopalytics / FrontierCode / AI Tracker |
 | `r` | Reload current board |
 | `y` | Copy selected row label to clipboard (OSC 52) |
 | `↑` / `↓` (or `k` / `j`) | Move selected row |
 | `PgUp` / `PgDn` | Move by 10 rows |
 | `Home` / `End` (or `g` / `G`) | Jump to first / last row |
 | `?` or `h` | Toggle in-app help (lists every keybinding and explains each metric; scroll it with `j`/`k`, `PgUp`/`PgDn`, or the mouse wheel) |
+| Mouse click | Tab: switch board. Column header: sort by it. Row: select it |
 | Mouse scroll | Scroll the table |
 
 ### Sorting
 
-| Key | AA | AA Agents | DeepSWE | AI Tracker |
-|-----|----|-----------|---------|------------|
-| `i` | Intelligence | Index | — | — |
-| `a` | — | Pass@1 | Pass@1 | — |
-| `s` | Speed | Turns | Steps | — |
-| `p` | Price | Cost | Cost | — |
-| `t` | — | Time | Time | Last seen |
-| `u` | — | Tokens | Tokens | — |
-| `c` | Context | — | — | — |
-| `d` | Cache discount | — | — | — |
-| `o` | Toggle sort direction | Toggle sort direction | Toggle sort direction | Toggle sort direction |
+| Key | AA | AA Agents | Slopalytics | FrontierCode | AI Tracker |
+|-----|----|-----------|-------------|--------------|------------|
+| `i` | Intelligence | Index | Intelligence | Score | — |
+| `a` | — | Pass@1 | — | Pass rate | — |
+| `s` | Speed | Turns | Speed | — | — |
+| `p` | Price | Cost | Cost per task | Cost per run | — |
+| `t` | — | Time | Time per task | Time per run | Last seen |
+| `u` | — | Tokens | Tokens per task | Tokens per run | — |
+| `c` | Context | — | — | — | — |
+| `d` | Cache discount | — | — | — | — |
+| `o` | Toggle sort direction | Toggle sort direction | Toggle sort direction | Toggle sort direction | Toggle sort direction |
+
+Clicking a column header does the same as pressing its key.
 
 ### View and filter
 
@@ -109,7 +112,8 @@ Requires Rust 1.88+ (`rust-version` in `Cargo.toml`; CI checks the floor).
 |-------|--------|---------|
 | AA | [artificialanalysis.ai/leaderboards/models](https://artificialanalysis.ai/leaderboards/models) | Intelligence index, output speed (t/s), input / output / cache hit / cache write prices, context window, release date; derived blended price ($/M tokens at 7:2:1 cache-hit:input:output, plus the no-cache 3:1 blend) and cache discount (%) |
 | AA Agents | [artificialanalysis.ai/agents/coding-agents](https://artificialanalysis.ai/agents/coding-agents) | Coding Agent Index, Pass@1, mean cost, mean execution time, mean tokens, mean turns |
-| DeepSWE | [deepswe.datacurve.ai](https://deepswe.datacurve.ai/) | Pass@1, mean cost ($), mean duration (s), mean total tokens, mean agent steps |
+| Slopalytics | [slopalytics.com](https://slopalytics.com/) | One row per model and reasoning effort: AA intelligence index (`~` marks AA estimates), cost, time, and output tokens per index task, speed, full index-run cost and tokens, prices, context |
+| FrontierCode | [cognition.com/frontiercode](https://cognition.com/frontiercode) | Mergeability score, pass rate, flag rate, cost, output tokens, and time per run at each model's best effort, plus the score at every evaluated effort |
 | AI Tracker | [live.aitracker.bot](https://live.aitracker.bot/) ([JSON API](https://live.aitracker.bot/developers)) | Tracked new models: maker, stage (release / leak), last-seen time, evidence post and event counts, page link |
 
 ## How it works
@@ -124,8 +128,9 @@ llmpk:
 4. Parses AA model rows from `/leaderboards/models` by scanning for balanced JSON objects containing `contextWindowTokens`, one row per slug; the homepage carries only a curated subset with no prices
 5. Derives AA's blended prices and cache discount from the raw input, output, and cache-hit prices, and joins release dates through the page's `modelsAndReleases` table
 6. Parses AA Agents rows by scanning for the first balanced array after `rows`
-7. Fetches DeepSWE and AI Tracker data directly from their JSON endpoints
-8. Preserves provider metadata where available so table and chart colors stay tied to the underlying model or agent creator
+7. Reads the Slopalytics model table from the site's JavaScript bundle (found through the hashed `/assets/index-*.js` link) and converts its object literals to JSON
+8. Fetches FrontierCode and AI Tracker data directly from their JSON endpoints; for FrontierCode it keeps the newest benchmark revision and each model's best-scoring effort, as the site does
+9. Preserves provider metadata where available so table and chart colors stay tied to the underlying model or agent creator
 
 This is inherently fragile: if a site changes its markup, the scraper breaks. That is deliberate — breakage shows up as an error banner on the board instead of being papered over. Retries cover transient network faults only (timeout, reset, 5xx), never parsing.
 
@@ -159,7 +164,6 @@ Tests gated behind environment variables run against a **full** captured page. P
 # Fixture-based tests (expect a complete page, not the trimmed fixture)
 LLMPK_LEADERBOARD_FIXTURE=path/to/leaderboards-models.html cargo test
 LLMPK_CODING_AGENTS_FIXTURE=path/to/coding-agents.html cargo test
-LLMPK_DEEPSWE_FIXTURE=path/to/leaderboard-live.json cargo test
 
 # Live network tests
 LLMPK_LIVE=1 cargo test live_fetch
@@ -177,13 +181,15 @@ src/
   rsc.rs            HTTP client, RSC stream extraction, brace/bracket scanners
   aa.rs             artificialanalysis.ai parser
   coding_agents.rs  artificialanalysis.ai coding agents parser
-  deepswe.rs        deepswe.datacurve.ai parser (JSON API, best-per-model dedup)
+  slopalytics.rs    slopalytics.com parser (JS bundle object literals to JSON)
+  frontiercode.rs   cognition.com FrontierCode parser (JSON, best effort per model)
   aitracker.rs      live.aitracker.bot model-pages parser (JSON API, UTC timestamps)
   board.rs          Board enum, Data/Status wrappers, fetch dispatch
   ui.rs             AppState, sort/filter state, render dispatch, shared helpers
   ui/aa_board.rs    AA table/detail/chart rendering
   ui/agents.rs      Agents table/chart rendering, brand colors
-  ui/deepswe_board.rs  DeepSWE table/detail/chart rendering, model colors
+  ui/slop_board.rs     Slopalytics table/detail/chart rendering, lab colors
+  ui/frontier_board.rs FrontierCode table/detail/chart rendering, per-effort scores
   ui/tracker_board.rs  AI Tracker table/detail rendering, stage colors, ages
   ui/chart.rs       Shared horizontal chart infrastructure
   ui/filter.rs      Per-board filter matching and filter cache helpers
@@ -191,7 +197,7 @@ src/
   ui/state.rs       Runtime app state, selection, filters, views, and sorting
   ui/chrome.rs      Tabs, header, footer, help overlay, loading/error screens
   ui/test_helpers.rs   Test-only row constructors
-tests/fixtures/     Trimmed AA / AA Agents / DeepSWE / AI Tracker captures used by parser tests
+tests/fixtures/     Trimmed captures for every board used by parser tests
 ```
 
 ## License

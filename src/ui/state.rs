@@ -9,6 +9,29 @@ use crate::board::{Board, Data, Status};
 use super::filter::*;
 use super::sort::*;
 
+/// What a left click landed on.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Click {
+    Tab(usize),
+    /// A column header; the char is that column's sort key.
+    Header(char),
+    /// A data row, as an index into the visible (filtered) rows.
+    Row(usize),
+    Nothing,
+}
+
+/// Where the last rendered table put its header and rows, for mouse
+/// hit-testing.
+#[derive(Debug, Clone, Default)]
+pub struct TableHit {
+    pub header_y: u16,
+    pub rows: Rect,
+    /// Index of the first visible row.
+    pub offset: usize,
+    /// Each column's `(x, width, sort key)`.
+    pub columns: Vec<(u16, u16, Option<char>)>,
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum View {
     Table,
@@ -29,7 +52,8 @@ pub struct AppState {
     pub compact: bool,
     pub aa_sort: AaSort,
     pub agent_sort: AgentSort,
-    pub deepswe_sort: DeepSweSort,
+    pub slop_sort: SlopSort,
+    pub frontier_sort: FrontierSort,
     pub tracker_sort: TrackerSort,
     filter_caches: HashMap<Board, FilterCache>,
     pub copy_feedback_at: Option<Instant>,
@@ -37,6 +61,7 @@ pub struct AppState {
     /// render, for mouse hit-testing.
     tab_bar: Rect,
     tab_spans: Vec<(u16, u16)>,
+    table_hit: Option<TableHit>,
 }
 
 impl AppState {
@@ -61,8 +86,12 @@ impl AppState {
                 key: AgentKey::Index,
                 dir: SortDir::Desc,
             },
-            deepswe_sort: DeepSweSort {
-                key: DeepSweKey::Pass,
+            slop_sort: SlopSort {
+                key: SlopKey::Intelligence,
+                dir: SortDir::Desc,
+            },
+            frontier_sort: FrontierSort {
+                key: FrontierKey::Score,
                 dir: SortDir::Desc,
             },
             tracker_sort: TrackerSort { dir: SortDir::Desc },
@@ -70,6 +99,7 @@ impl AppState {
             copy_feedback_at: None,
             tab_bar: Rect::default(),
             tab_spans: Vec::new(),
+            table_hit: None,
         }
     }
 
@@ -93,6 +123,45 @@ impl AppState {
     pub(super) fn set_tab_spans(&mut self, bar: Rect, spans: Vec<(u16, u16)>) {
         self.tab_bar = bar;
         self.tab_spans = spans;
+    }
+
+    pub(super) fn set_table_hit(&mut self, hit: Option<TableHit>) {
+        self.table_hit = hit;
+    }
+
+    /// Map a click to the tab, column header, or table row drawn there.
+    pub fn hit_test(&self, column: u16, row: u16) -> Click {
+        if let Some(idx) = self.tab_at(column, row) {
+            return Click::Tab(idx);
+        }
+        let Some(hit) = &self.table_hit else {
+            return Click::Nothing;
+        };
+        if row == hit.header_y {
+            return hit
+                .columns
+                .iter()
+                .find(|&&(x, width, _)| column >= x && column < x.saturating_add(width))
+                .and_then(|&(_, _, key)| key)
+                .map_or(Click::Nothing, Click::Header);
+        }
+        let rows = hit.rows;
+        let in_rows =
+            column >= rows.x && column < rows.right() && row >= rows.y && row < rows.bottom();
+        if in_rows {
+            let idx = hit.offset + usize::from(row - rows.y);
+            if idx < self.row_count(self.current_board()) {
+                return Click::Row(idx);
+            }
+        }
+        Click::Nothing
+    }
+
+    pub fn select_row(&mut self, idx: usize) {
+        let board = self.current_board();
+        if idx < self.row_count(board) {
+            self.table_state.entry(board).or_default().select(Some(idx));
+        }
     }
 
     /// Index of the board whose tab was drawn at this cell, if any.
@@ -222,7 +291,8 @@ impl AppState {
         match self.status.get(&board) {
             Some(Status::Loaded(Data::Aa(v))) => count_matching_aa(v, query),
             Some(Status::Loaded(Data::AaAgents(v))) => count_matching_agents(v, query),
-            Some(Status::Loaded(Data::DeepSwe(v))) => count_matching_deepswe(v, query),
+            Some(Status::Loaded(Data::Slop(v))) => count_matching_slop(v, query),
+            Some(Status::Loaded(Data::Frontier(v))) => count_matching_frontier(v, query),
             Some(Status::Loaded(Data::Tracker(v))) => count_matching_tracker(v, query),
             _ => 0,
         }
@@ -368,23 +438,46 @@ impl AppState {
                     }
                 }
             }
-            Board::DeepSwe => {
+            Board::Slop => {
                 let new_key = match key {
-                    'a' => Some(DeepSweKey::Pass),
-                    'p' => Some(DeepSweKey::Cost),
-                    't' => Some(DeepSweKey::Time),
-                    'u' => Some(DeepSweKey::Tokens),
-                    's' => Some(DeepSweKey::Steps),
+                    'i' => Some(SlopKey::Intelligence),
+                    'p' => Some(SlopKey::Cost),
+                    't' => Some(SlopKey::Time),
+                    'u' => Some(SlopKey::Tokens),
+                    's' => Some(SlopKey::Speed),
                     _ => None,
                 };
                 if let Some(k) = new_key {
-                    if self.deepswe_sort.key == k {
-                        self.deepswe_sort.dir = self.deepswe_sort.dir.toggle();
+                    if self.slop_sort.key == k {
+                        self.slop_sort.dir = self.slop_sort.dir.toggle();
                     } else {
-                        self.deepswe_sort.key = k;
-                        self.deepswe_sort.dir = if matches!(
+                        self.slop_sort.key = k;
+                        self.slop_sort.dir =
+                            if matches!(k, SlopKey::Cost | SlopKey::Time | SlopKey::Tokens) {
+                                SortDir::Asc
+                            } else {
+                                SortDir::Desc
+                            };
+                    }
+                }
+            }
+            Board::Frontier => {
+                let new_key = match key {
+                    'i' => Some(FrontierKey::Score),
+                    'a' => Some(FrontierKey::Pass),
+                    'p' => Some(FrontierKey::Cost),
+                    'u' => Some(FrontierKey::Tokens),
+                    't' => Some(FrontierKey::Time),
+                    _ => None,
+                };
+                if let Some(k) = new_key {
+                    if self.frontier_sort.key == k {
+                        self.frontier_sort.dir = self.frontier_sort.dir.toggle();
+                    } else {
+                        self.frontier_sort.key = k;
+                        self.frontier_sort.dir = if matches!(
                             k,
-                            DeepSweKey::Cost | DeepSweKey::Time | DeepSweKey::Tokens
+                            FrontierKey::Cost | FrontierKey::Tokens | FrontierKey::Time
                         ) {
                             SortDir::Asc
                         } else {
@@ -411,8 +504,9 @@ impl AppState {
         match self.status.get(&board) {
             Some(Status::Loaded(Data::Aa(models))) => models.get(data_idx).map(|m| m.name.clone()),
             Some(Status::Loaded(Data::AaAgents(rows))) => rows.get(data_idx).map(|r| r.label()),
-            Some(Status::Loaded(Data::DeepSwe(rows))) => {
-                rows.get(data_idx).map(|r| r.display_model())
+            Some(Status::Loaded(Data::Slop(rows))) => rows.get(data_idx).map(|r| r.display_name()),
+            Some(Status::Loaded(Data::Frontier(rows))) => {
+                rows.get(data_idx).map(|r| r.display_name())
             }
             Some(Status::Loaded(Data::Tracker(pages))) => {
                 pages.get(data_idx).map(|p| p.model.clone())
@@ -425,7 +519,8 @@ impl AppState {
         match self.current_board() {
             Board::Aa => self.aa_sort.dir = self.aa_sort.dir.toggle(),
             Board::AaAgents => self.agent_sort.dir = self.agent_sort.dir.toggle(),
-            Board::DeepSwe => self.deepswe_sort.dir = self.deepswe_sort.dir.toggle(),
+            Board::Slop => self.slop_sort.dir = self.slop_sort.dir.toggle(),
+            Board::Frontier => self.frontier_sort.dir = self.frontier_sort.dir.toggle(),
             Board::Tracker => self.tracker_sort.dir = self.tracker_sort.dir.toggle(),
         }
         self.resort_current();
@@ -438,7 +533,8 @@ impl AppState {
                 data,
                 &self.aa_sort,
                 &self.agent_sort,
-                &self.deepswe_sort,
+                &self.slop_sort,
+                &self.frontier_sort,
                 &self.tracker_sort,
             );
         }
@@ -454,7 +550,8 @@ impl AppState {
             data,
             &self.aa_sort,
             &self.agent_sort,
-            &self.deepswe_sort,
+            &self.slop_sort,
+            &self.frontier_sort,
             &self.tracker_sort,
         );
     }
@@ -493,14 +590,26 @@ impl AppState {
                             .collect()
                     }
                 }
-                Some(Status::Loaded(Data::DeepSwe(rows))) => {
+                Some(Status::Loaded(Data::Slop(rows))) => {
                     let tokens = filter_tokens(query);
                     if tokens.is_empty() {
                         (0..rows.len()).collect()
                     } else {
                         rows.iter()
                             .enumerate()
-                            .filter(|(_, r)| deepswe_matches_filter(r, &tokens))
+                            .filter(|(_, r)| slop_matches_filter(r, &tokens))
+                            .map(|(i, _)| i)
+                            .collect()
+                    }
+                }
+                Some(Status::Loaded(Data::Frontier(rows))) => {
+                    let tokens = filter_tokens(query);
+                    if tokens.is_empty() {
+                        (0..rows.len()).collect()
+                    } else {
+                        rows.iter()
+                            .enumerate()
+                            .filter(|(_, r)| frontier_matches_filter(r, &tokens))
                             .map(|(i, _)| i)
                             .collect()
                     }

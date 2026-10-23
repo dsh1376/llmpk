@@ -3,17 +3,25 @@ use anyhow::Result;
 use crate::aa;
 use crate::aitracker;
 use crate::coding_agents;
-use crate::deepswe;
+use crate::frontiercode;
+use crate::slopalytics;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum Board {
     Aa,
     AaAgents,
-    DeepSwe,
+    Slop,
+    Frontier,
     Tracker,
 }
 
-const ALL_BOARDS: [Board; 4] = [Board::Aa, Board::AaAgents, Board::DeepSwe, Board::Tracker];
+const ALL_BOARDS: [Board; 5] = [
+    Board::Aa,
+    Board::AaAgents,
+    Board::Slop,
+    Board::Frontier,
+    Board::Tracker,
+];
 
 impl Board {
     pub fn all() -> &'static [Board] {
@@ -24,7 +32,8 @@ impl Board {
         match self {
             Board::Aa => "AA",
             Board::AaAgents => "AA Agents",
-            Board::DeepSwe => "DeepSWE",
+            Board::Slop => "Slopalytics",
+            Board::Frontier => "FrontierCode",
             Board::Tracker => "AI Tracker",
         }
     }
@@ -35,6 +44,7 @@ impl Board {
             1 => Some('2'),
             2 => Some('3'),
             3 => Some('4'),
+            4 => Some('5'),
             _ => None,
         }
     }
@@ -45,6 +55,7 @@ impl Board {
             '2' => Some(1),
             '3' => Some(2),
             '4' => Some(3),
+            '5' => Some(4),
             _ => None,
         }
     }
@@ -59,7 +70,8 @@ impl Board {
 pub enum Data {
     Aa(Vec<aa::Model>),
     AaAgents(Vec<coding_agents::AgentRow>),
-    DeepSwe(Vec<deepswe::Row>),
+    Slop(Vec<slopalytics::Row>),
+    Frontier(Vec<frontiercode::Row>),
     Tracker(Vec<aitracker::ModelPage>),
 }
 
@@ -74,7 +86,8 @@ pub fn fetch(board: Board) -> Result<Data> {
     match board {
         Board::Aa => aa::fetch().map(Data::Aa),
         Board::AaAgents => coding_agents::fetch().map(Data::AaAgents),
-        Board::DeepSwe => deepswe::fetch().map(Data::DeepSwe),
+        Board::Slop => slopalytics::fetch().map(Data::Slop),
+        Board::Frontier => frontiercode::fetch().map(Data::Frontier),
         Board::Tracker => aitracker::fetch().map(Data::Tracker),
     }
 }

@@ -1,0 +1,346 @@
+{
+ "v1": {
+  "models": [
+   "Claude Fable 5"
+  ],
+  "colors": {
+   "Claude Fable 5": "#d97757"
+  },
+  "lab_colors": {
+   "Anthropic": "#d97757"
+  },
+  "harness": {
+   "Claude Fable 5": "claude-code"
+  },
+  "efforts": {
+   "Claude Fable 5": [
+    "low",
+    "medium",
+    "high",
+    "xhigh",
+    "max"
+   ]
+  },
+  "subsets": {
+   "main": 100,
+   "extended": 150
+  },
+  "data": {
+   "Claude Fable 5": {
+    "high": {
+     "main": {
+      "correct": 0.462,
+      "new_score": 0.433,
+      "tokens": 34776.9,
+      "cost": 8.2,
+      "tool_calls": null,
+      "steps": null,
+      "ote": null
+     },
+     "extended": {
+      "correct": 0.633,
+      "new_score": 0.594,
+      "tokens": 29252.9,
+      "cost": 6.8,
+      "tool_calls": null,
+      "steps": null,
+      "ote": null
+     }
+    },
+    "low": {
+     "main": {
+      "correct": 0.405,
+      "new_score": 0.376,
+      "tokens": 21262.2,
+      "cost": 4.6,
+      "tool_calls": null,
+      "steps": null,
+      "ote": null
+     },
+     "extended": {
+      "correct": 0.59,
+      "new_score": 0.547,
+      "tokens": 17747.4,
+      "cost": 3.8,
+      "tool_calls": null,
+      "steps": null,
+      "ote": null
+     }
+    },
+    "max": {
+     "main": {
+      "correct": 0.477,
+      "new_score": 0.451,
+      "tokens": 65654.2,
+      "cost": 16,
+      "tool_calls": null,
+      "steps": null,
+      "ote": null
+     },
+     "extended": {
+      "correct": 0.638,
+      "new_score": 0.6,
+      "tokens": 56060.3,
+      "cost": 13.2,
+      "tool_calls": null,
+      "steps": null,
+      "ote": null
+     }
+    },
+    "medium": {
+     "main": {
+      "correct": 0.443,
+      "new_score": 0.415,
+      "tokens": 27155.5,
+      "cost": 6,
+      "tool_calls": null,
+      "steps": null,
+      "ote": null
+     },
+     "extended": {
+      "correct": 0.614,
+      "new_score": 0.574,
+      "tokens": 23104.1,
+      "cost": 5,
+      "tool_calls": null,
+      "steps": null,
+      "ote": null
+     }
+    },
+    "xhigh": {
+     "main": {
+      "correct": 0.493,
+      "new_score": 0.468,
+      "tokens": 45395.6,
+      "cost": 10.6,
+      "tool_calls": null,
+      "steps": null,
+      "ote": null
+     },
+     "extended": {
+      "correct": 0.653,
+      "new_score": 0.616,
+      "tokens": 38379.8,
+      "cost": 8.8,
+      "tool_calls": null,
+      "steps": null,
+      "ote": null
+     }
+    }
+   }
+  }
+ },
+ "v1_1": {
+  "models": [
+   "Claude Opus 5.5",
+   "Kimi K3",
+   "Inkling"
+  ],
+  "colors": {
+   "Claude Opus 5.5": "#d97757",
+   "Kimi K3": "#7c3aed",
+   "Inkling": "#e3a857"
+  },
+  "lab_colors": {
+   "Anthropic": "#d97757",
+   "Moonshot": "#7c3aed",
+   "Thinking Machines": "#e3a857"
+  },
+  "harness": {
+   "Claude Opus 5.5": "claude-code",
+   "Kimi K3": "mini-swe-agent",
+   "Inkling": "mini-swe-agent"
+  },
+  "efforts": {
+   "Claude Opus 5.5": [
+    "low",
+    "medium",
+    "high",
+    "xhigh",
+    "max"
+   ],
+   "Kimi K3": [
+    "none"
+   ],
+   "Inkling": [
+    "0.99"
+   ]
+  },
+  "subsets": {
+   "main": 100,
+   "extended": 150
+  },
+  "data": {
+   "Claude Opus 5.5": {
+    "low": {
+     "main": {
+      "correct": 0.5175,
+      "new_score": 0.473,
+      "tokens": 9061,
+      "cost": 0.4036,
+      "duration_min": 4.87,
+      "tool_calls": 16.4,
+      "steps": 34.3,
+      "ote": null,
+      "flagged_rate": 0
+     },
+     "extended": {
+      "correct": 0.6583,
+      "new_score": 0.6033,
+      "tokens": 7619,
+      "cost": 0.3464,
+      "duration_min": 4.65,
+      "tool_calls": 14.6,
+      "steps": 30.1,
+      "ote": null,
+      "flagged_rate": 0.0067
+     }
+    },
+    "medium": {
+     "main": {
+      "correct": 0.596,
+      "new_score": 0.5464,
+      "tokens": 18519,
+      "cost": 0.8016,
+      "duration_min": 6.34,
+      "tool_calls": 35.1,
+      "steps": 64,
+      "ote": null,
+      "flagged_rate": 0
+     },
+     "extended": {
+      "correct": 0.708,
+      "new_score": 0.6527,
+      "tokens": 15169,
+      "cost": 0.6666,
+      "duration_min": 5.58,
+      "tool_calls": 30,
+      "steps": 55.4,
+      "ote": null,
+      "flagged_rate": 0.004
+     }
+    },
+    "high": {
+     "main": {
+      "correct": 0.589,
+      "new_score": 0.5399,
+      "tokens": 26143,
+      "cost": 1.0896,
+      "duration_min": 7.2,
+      "tool_calls": 43.1,
+      "steps": 74.6,
+      "ote": null,
+      "flagged_rate": 0
+     },
+     "extended": {
+      "correct": 0.7073,
+      "new_score": 0.652,
+      "tokens": 21371,
+      "cost": 0.903,
+      "duration_min": 6.26,
+      "tool_calls": 37.2,
+      "steps": 65.4,
+      "ote": null,
+      "flagged_rate": 0
+     }
+    },
+    "xhigh": {
+     "main": {
+      "correct": 0.568,
+      "new_score": 0.5142,
+      "tokens": 60182,
+      "cost": 2.2545,
+      "duration_min": 11.21,
+      "tool_calls": 61.9,
+      "steps": 97.9,
+      "ote": null,
+      "flagged_rate": 0
+     },
+     "extended": {
+      "correct": 0.692,
+      "new_score": 0.6353,
+      "tokens": 49417,
+      "cost": 1.8587,
+      "duration_min": 9.53,
+      "tool_calls": 53.4,
+      "steps": 85.8,
+      "ote": null,
+      "flagged_rate": 0
+     }
+    },
+    "max": {
+     "main": {
+      "correct": 0.6,
+      "new_score": 0.5443,
+      "tokens": 165811,
+      "cost": 6.191,
+      "duration_min": 25.01,
+      "tool_calls": 99.4,
+      "steps": 150.4,
+      "ote": null,
+      "flagged_rate": 0.008
+     },
+     "extended": {
+      "correct": 0.6947,
+      "new_score": 0.6358,
+      "tokens": 143626,
+      "cost": 5.2832,
+      "duration_min": 21.75,
+      "tool_calls": 87.4,
+      "steps": 133.6,
+      "ote": null,
+      "flagged_rate": 0.0053
+     }
+    }
+   },
+   "Kimi K3": {
+    "none": {
+     "extended": {
+      "correct": 0.6358,
+      "new_score": 0.5819,
+      "tokens": 45646.3,
+      "cost": 3.1235,
+      "tool_calls": null,
+      "steps": null,
+      "ote": null,
+      "flagged_rate": 0.0014
+     },
+     "main": {
+      "correct": 0.4891,
+      "new_score": 0.4417,
+      "tokens": 53607.2,
+      "cost": 3.8167,
+      "tool_calls": null,
+      "steps": null,
+      "ote": null,
+      "flagged_rate": 0.0021
+     }
+    }
+   },
+   "Inkling": {
+    "0.99": {
+     "main": {
+      "correct": 0.159,
+      "new_score": 0.14,
+      "tokens": 33610.8,
+      "cost": 3.6,
+      "tool_calls": null,
+      "steps": null,
+      "ote": null,
+      "flagged_rate": 0.076
+     },
+     "extended": {
+      "correct": 0.278,
+      "new_score": 0.248,
+      "tokens": 30149.8,
+      "cost": 3.2,
+      "tool_calls": null,
+      "steps": null,
+      "ote": null,
+      "flagged_rate": 0.0727
+     }
+    }
+   }
+  }
+ }
+}

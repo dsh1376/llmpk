@@ -1,4 +1,5 @@
 use ratatui::{
+    layout::Margin,
     layout::{Constraint, Direction, Layout, Rect},
     style::{Color, Modifier, Style, Stylize},
     text::{Line, Span},
@@ -10,8 +11,9 @@ mod aa_board;
 mod agents;
 mod chart;
 mod chrome;
-mod deepswe_board;
 mod filter;
+mod frontier_board;
+mod slop_board;
 mod sort;
 pub mod state;
 #[cfg(test)]
@@ -52,12 +54,16 @@ pub fn render(frame: &mut Frame, app: &mut AppState) {
 }
 
 fn render_body(frame: &mut Frame, area: Rect, app: &mut AppState) {
+    // Each table render below records where it drew; anything else clears it.
+    app.set_table_hit(None);
+    let mut hit = None;
     let board = app.current_board();
     let query = app.current_filter().to_string();
     let view = app.current_view();
     let aa_sort_key = app.aa_sort.key;
     let agent_sort_key = app.agent_sort.key;
-    let deepswe_sort_key = app.deepswe_sort.key;
+    let slop_sort_key = app.slop_sort.key;
+    let frontier_sort_key = app.frontier_sort.key;
     let indices = app.filter_cache(board, &query).to_vec();
     let filter_tokens = filter_tokens(&query);
     let table_state = &mut app.table_state;
@@ -75,7 +81,7 @@ fn render_body(frame: &mut Frame, area: Rect, app: &mut AppState) {
             match view {
                 View::Table => {
                     let (table_area, detail_area) = split_body(area);
-                    aa_board::render_aa_table(
+                    hit = Some(aa_board::render_aa_table(
                         frame,
                         table_area,
                         models,
@@ -85,7 +91,7 @@ fn render_body(frame: &mut Frame, area: Rect, app: &mut AppState) {
                         aa_sort_key,
                         &filter_tokens,
                         app.compact,
-                    );
+                    ));
                     if let Some(detail_area) = detail_area {
                         let model = indices.get(selected).and_then(|&i| models.get(i));
                         aa_board::render_aa_detail(frame, detail_area, model);
@@ -106,7 +112,7 @@ fn render_body(frame: &mut Frame, area: Rect, app: &mut AppState) {
             match view {
                 View::Table => {
                     let (table_area, detail_area) = split_agents_body(area);
-                    agents::render_agents_table(
+                    hit = Some(agents::render_agents_table(
                         frame,
                         table_area,
                         rows,
@@ -116,7 +122,7 @@ fn render_body(frame: &mut Frame, area: Rect, app: &mut AppState) {
                         agent_sort_key,
                         &filter_tokens,
                         app.compact,
-                    );
+                    ));
                     if let Some(detail_area) = detail_area {
                         let row = indices.get(selected).and_then(|&i| rows.get(i));
                         agents::render_agent_detail(frame, detail_area, row);
@@ -125,7 +131,7 @@ fn render_body(frame: &mut Frame, area: Rect, app: &mut AppState) {
                 View::Chart => agents::render_agents_chart(frame, area, rows, &indices, app),
             }
         }
-        Some(Status::Loaded(Data::DeepSwe(rows))) => {
+        Some(Status::Loaded(Data::Slop(rows))) => {
             if indices.is_empty() && filter_is_active(&query) {
                 chrome::render_filter_empty(frame, area, &query);
                 return;
@@ -136,25 +142,56 @@ fn render_body(frame: &mut Frame, area: Rect, app: &mut AppState) {
                 .unwrap_or(0);
             match view {
                 View::Table => {
-                    let (table_area, detail_area) = split_deepswe_body(area);
-                    deepswe_board::render_deepswe_table(
+                    let (table_area, detail_area) = split_slop_body(area);
+                    hit = Some(slop_board::render_slop_table(
                         frame,
                         table_area,
                         rows,
                         &indices,
                         table_state,
                         board,
-                        deepswe_sort_key,
+                        slop_sort_key,
                         &filter_tokens,
                         app.compact,
-                    );
+                    ));
                     if let Some(detail_area) = detail_area {
                         let row = indices.get(selected).and_then(|&i| rows.get(i));
-                        deepswe_board::render_deepswe_detail(frame, detail_area, row);
+                        slop_board::render_slop_detail(frame, detail_area, row);
+                    }
+                }
+                View::Chart => slop_board::render_slop_chart(frame, area, rows, &indices, app),
+            }
+        }
+        Some(Status::Loaded(Data::Frontier(rows))) => {
+            if indices.is_empty() && filter_is_active(&query) {
+                chrome::render_filter_empty(frame, area, &query);
+                return;
+            }
+            let selected = table_state
+                .get(&board)
+                .and_then(TableState::selected)
+                .unwrap_or(0);
+            match view {
+                View::Table => {
+                    let (table_area, detail_area) = split_slop_body(area);
+                    hit = Some(frontier_board::render_frontier_table(
+                        frame,
+                        table_area,
+                        rows,
+                        &indices,
+                        table_state,
+                        board,
+                        frontier_sort_key,
+                        &filter_tokens,
+                        app.compact,
+                    ));
+                    if let Some(detail_area) = detail_area {
+                        let row = indices.get(selected).and_then(|&i| rows.get(i));
+                        frontier_board::render_frontier_detail(frame, detail_area, row);
                     }
                 }
                 View::Chart => {
-                    deepswe_board::render_deepswe_chart(frame, area, rows, &indices, app)
+                    frontier_board::render_frontier_chart(frame, area, rows, &indices, app)
                 }
             }
         }
@@ -168,7 +205,7 @@ fn render_body(frame: &mut Frame, area: Rect, app: &mut AppState) {
                 .and_then(TableState::selected)
                 .unwrap_or(0);
             let (table_area, detail_area) = split_tracker_body(area);
-            tracker_board::render_tracker_table(
+            hit = Some(tracker_board::render_tracker_table(
                 frame,
                 table_area,
                 pages,
@@ -177,7 +214,7 @@ fn render_body(frame: &mut Frame, area: Rect, app: &mut AppState) {
                 board,
                 &filter_tokens,
                 app.compact,
-            );
+            ));
             if let Some(detail_area) = detail_area {
                 let page = indices.get(selected).and_then(|&i| pages.get(i));
                 tracker_board::render_tracker_detail(frame, detail_area, page);
@@ -190,6 +227,7 @@ fn render_body(frame: &mut Frame, area: Rect, app: &mut AppState) {
             chrome::render_loading(frame, area, board);
         }
     }
+    app.set_table_hit(hit);
 }
 
 fn split_body(area: Rect) -> (Rect, Option<Rect>) {
@@ -216,7 +254,7 @@ fn split_agents_body(area: Rect) -> (Rect, Option<Rect>) {
     (chunks[0], Some(chunks[1]))
 }
 
-fn split_deepswe_body(area: Rect) -> (Rect, Option<Rect>) {
+fn split_slop_body(area: Rect) -> (Rect, Option<Rect>) {
     if area.width < 110 || area.height < 12 {
         return (area, None);
     }
@@ -256,6 +294,40 @@ const SELECTED_BG: Color = Color::Rgb(0x1f, 0x3a, 0x52);
 pub(crate) fn header_cell(label: &str, sorted: bool) -> Cell<'_> {
     let fg = if sorted { Color::Cyan } else { Color::Gray };
     Cell::from(label).style(Style::default().fg(fg).add_modifier(Modifier::BOLD))
+}
+
+/// Record where a bordered table drew its header and columns. Mirrors the
+/// `Table` layout: a two-cell gutter for the `"> "` highlight symbol when a
+/// row is selected, then the columns with `Flex::Start` and the spacing.
+pub(crate) fn table_hit(
+    area: Rect,
+    widths: &[Constraint],
+    spacing: u16,
+    state: &TableState,
+    sort_keys: Vec<Option<char>>,
+) -> TableHit {
+    let inner = area.inner(Margin::new(1, 1));
+    let gutter = if state.selected().is_some() { 2 } else { 0 };
+    let [_, columns_area] = Layout::horizontal([Constraint::Length(gutter), Constraint::Fill(0)])
+        .areas(Rect::new(inner.x, 0, inner.width, 1));
+    let rects = Layout::horizontal(widths.iter().copied())
+        .flex(ratatui::layout::Flex::Start)
+        .spacing(spacing)
+        .split(columns_area);
+    TableHit {
+        header_y: inner.y,
+        rows: Rect {
+            y: inner.y.saturating_add(1),
+            height: inner.height.saturating_sub(1),
+            ..inner
+        },
+        offset: state.offset(),
+        columns: rects
+            .iter()
+            .zip(sort_keys)
+            .map(|(r, key)| (r.x, r.width, key))
+            .collect(),
+    }
 }
 
 /// Bordered panel shared by tables, charts, and detail panes. The border is
@@ -942,8 +1014,14 @@ mod tests {
 
     #[test]
     fn mouse_hits_the_tab_under_the_cursor() {
-        let wide = ["1 AA", "2 AA Agents", "3 DeepSWE", "4 AI Tracker"];
-        let short = ["1 AA", "2 AAg", "3 DSwe", "4 AIT"];
+        let wide = [
+            "1 AA",
+            "2 AA Agents",
+            "3 Slopalytics",
+            "4 FrontierCode",
+            "5 AI Tracker",
+        ];
+        let short = ["1 AA", "2 AAg", "3 Slop", "4 FC", "5 AIT"];
         for (width, labels) in [(120u16, wide), (44, short)] {
             let mut app = AppState::new();
             let mut terminal =
@@ -997,7 +1075,7 @@ mod tests {
     #[test]
     fn render_draws_tracker_board_without_chart_toggle() {
         let mut app = AppState::new();
-        app.select_board(3);
+        app.select_board(4);
         app.set_status(
             Board::Tracker,
             Status::Loaded(Data::Tracker(vec![
@@ -1025,7 +1103,7 @@ mod tests {
     #[test]
     fn error_view_keeps_status_and_source_visible() {
         let mut app = AppState::new();
-        app.select_board(3);
+        app.select_board(4);
         app.set_status(
             Board::Tracker,
             Status::Error(
@@ -1158,5 +1236,44 @@ mod tests {
         assert!(table_row.contains("Antigravity CLI"), "{table_row:?}");
         assert!(!text.contains("a2c87c062f3c"), "hash id shown");
         assert!(!text.contains("Release"), "empty release shown");
+    }
+
+    #[test]
+    fn mouse_clicks_sort_by_header_and_select_rows() {
+        let mut app = AppState::new();
+        let mut models = make_models(3);
+        models[0].median_output_speed = Some(10.0);
+        models[1].median_output_speed = Some(30.0);
+        models[2].median_output_speed = Some(20.0);
+        app.set_status(Board::Aa, Status::Loaded(Data::Aa(models)));
+        let width = 100u16;
+        let mut terminal =
+            ratatui::Terminal::new(ratatui::backend::TestBackend::new(width, 24)).unwrap();
+        terminal.draw(|frame| render(frame, &mut app)).unwrap();
+
+        // Rows 0-3 are the top bar, 4 is the table border, 5 the header.
+        let header = rendered_line(terminal.backend(), width as usize, 5);
+        let byte = header.find("t/s").expect("speed column shown");
+        let col = header[..byte].chars().count() as u16;
+        assert_eq!(app.hit_test(col, 5), Click::Header('s'));
+        assert_eq!(app.hit_test(col + 1, 5), Click::Header('s'));
+        // The index column has no sort key.
+        assert_eq!(app.hit_test(3, 5), Click::Nothing);
+
+        // Data rows start at row 6.
+        assert_eq!(app.hit_test(10, 6), Click::Row(0));
+        assert_eq!(app.hit_test(10, 8), Click::Row(2));
+        // Below the last row, and the tab bar, keep their own meaning.
+        assert_eq!(app.hit_test(10, 9), Click::Nothing);
+        assert_eq!(app.hit_test(3, 1), Click::Tab(0));
+
+        app.cycle_sort('s');
+        app.select_row(2);
+        terminal.draw(|frame| render(frame, &mut app)).unwrap();
+        assert_eq!(app.selected_idx(), 2);
+        let selected = rendered_line(terminal.backend(), width as usize, 8);
+        assert!(selected.contains(">"), "row 3 is highlighted: {selected:?}");
+        // Sorted by speed, descending: 30, 20, 10.
+        assert!(rendered_line(terminal.backend(), width as usize, 6).contains("Model 1"));
     }
 }

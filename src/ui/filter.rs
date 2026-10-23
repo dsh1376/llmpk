@@ -1,7 +1,8 @@
 use crate::aa;
 use crate::aitracker;
 use crate::coding_agents;
-use crate::deepswe;
+use crate::frontiercode;
+use crate::slopalytics;
 
 pub struct FilterCache {
     pub(super) indices: Vec<usize>,
@@ -79,12 +80,14 @@ pub(super) fn count_matching_agents(rows: &[coding_agents::AgentRow], query: &st
         .count()
 }
 
-pub fn deepswe_matches_filter(row: &deepswe::Row, tokens: &[String]) -> bool {
-    let display = row.display_model();
+pub fn slop_matches_filter(row: &slopalytics::Row, tokens: &[String]) -> bool {
     let lowered: Vec<String> = [
-        row.model.as_str(),
-        display.as_str(),
-        row.reasoning_effort.as_deref().unwrap_or(""),
+        row.id.as_str(),
+        row.name.as_str(),
+        row.variant.as_deref().unwrap_or(""),
+        row.lab(),
+        row.effort().unwrap_or(""),
+        row.released.as_deref().unwrap_or(""),
     ]
     .iter()
     .map(|f| f.to_lowercase())
@@ -94,13 +97,38 @@ pub fn deepswe_matches_filter(row: &deepswe::Row, tokens: &[String]) -> bool {
         .all(|token| token_in_lowered_fields(token, &lowered))
 }
 
-pub(super) fn count_matching_deepswe(rows: &[deepswe::Row], query: &str) -> usize {
+pub(super) fn count_matching_slop(rows: &[slopalytics::Row], query: &str) -> usize {
     let tokens = filter_tokens(query);
     if tokens.is_empty() {
         return rows.len();
     }
     rows.iter()
-        .filter(|row| deepswe_matches_filter(row, &tokens))
+        .filter(|row| slop_matches_filter(row, &tokens))
+        .count()
+}
+
+pub fn frontier_matches_filter(row: &frontiercode::Row, tokens: &[String]) -> bool {
+    let lowered: Vec<String> = [
+        row.model.as_str(),
+        row.lab(),
+        row.effort.as_deref().unwrap_or(""),
+        row.harness.as_deref().unwrap_or(""),
+    ]
+    .iter()
+    .map(|f| f.to_lowercase())
+    .collect();
+    tokens
+        .iter()
+        .all(|token| token_in_lowered_fields(token, &lowered))
+}
+
+pub(super) fn count_matching_frontier(rows: &[frontiercode::Row], query: &str) -> usize {
+    let tokens = filter_tokens(query);
+    if tokens.is_empty() {
+        return rows.len();
+    }
+    rows.iter()
+        .filter(|row| frontier_matches_filter(row, &tokens))
         .count()
 }
 

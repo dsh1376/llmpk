@@ -3,7 +3,8 @@ use std::cmp::Ordering;
 use crate::aa;
 use crate::aitracker;
 use crate::coding_agents;
-use crate::deepswe;
+use crate::frontiercode;
+use crate::slopalytics;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum SortDir {
@@ -46,12 +47,12 @@ pub enum AgentKey {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum DeepSweKey {
-    Pass,
+pub enum SlopKey {
+    Intelligence,
     Cost,
     Time,
     Tokens,
-    Steps,
+    Speed,
 }
 
 #[derive(Debug, Clone)]
@@ -66,9 +67,24 @@ pub struct AgentSort {
     pub dir: SortDir,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum FrontierKey {
+    Score,
+    Pass,
+    Cost,
+    Tokens,
+    Time,
+}
+
 #[derive(Debug, Clone)]
-pub struct DeepSweSort {
-    pub key: DeepSweKey,
+pub struct FrontierSort {
+    pub key: FrontierKey,
+    pub dir: SortDir,
+}
+
+#[derive(Debug, Clone)]
+pub struct SlopSort {
+    pub key: SlopKey,
     pub dir: SortDir,
 }
 
@@ -84,13 +100,15 @@ pub fn sort_with(
     data: &mut crate::board::Data,
     aa_sort: &AaSort,
     agent_sort: &AgentSort,
-    deepswe_sort: &DeepSweSort,
+    slop_sort: &SlopSort,
+    frontier_sort: &FrontierSort,
     tracker_sort: &TrackerSort,
 ) {
     match data {
         crate::board::Data::Aa(models) => sort_aa(models, aa_sort),
         crate::board::Data::AaAgents(rows) => sort_agents(rows, agent_sort),
-        crate::board::Data::DeepSwe(rows) => sort_deepswe(rows, deepswe_sort),
+        crate::board::Data::Slop(rows) => sort_slop(rows, slop_sort),
+        crate::board::Data::Frontier(rows) => sort_frontier(rows, frontier_sort),
         crate::board::Data::Tracker(pages) => sort_tracker(pages, tracker_sort),
     }
 }
@@ -136,23 +154,41 @@ pub fn agent_metric(row: &coding_agents::AgentRow, key: AgentKey) -> Option<f64>
     }
 }
 
-fn sort_deepswe(rows: &mut [deepswe::Row], sort: &DeepSweSort) {
+fn sort_slop(rows: &mut [slopalytics::Row], sort: &SlopSort) {
     let key = sort.key;
     let dir = sort.dir;
     rows.sort_by(|a, b| {
-        let av = deepswe_metric(a, key);
-        let bv = deepswe_metric(b, key);
+        let av = slop_metric(a, key);
+        let bv = slop_metric(b, key);
         cmp_opt_for_dir(av, bv, dir)
     });
 }
 
-pub fn deepswe_metric(row: &deepswe::Row, key: DeepSweKey) -> Option<f64> {
+pub fn slop_metric(row: &slopalytics::Row, key: SlopKey) -> Option<f64> {
     match key {
-        DeepSweKey::Pass => row.pass_rate,
-        DeepSweKey::Cost => row.mean_cost_usd,
-        DeepSweKey::Time => row.mean_duration_seconds,
-        DeepSweKey::Tokens => row.total_tokens(),
-        DeepSweKey::Steps => row.mean_agent_steps,
+        SlopKey::Intelligence => row.intelligence,
+        SlopKey::Cost => row.cost,
+        SlopKey::Time => row.time,
+        SlopKey::Tokens => row.tokens,
+        SlopKey::Speed => row.speed,
+    }
+}
+
+fn sort_frontier(rows: &mut [frontiercode::Row], sort: &FrontierSort) {
+    rows.sort_by(|a, b| {
+        let av = frontier_metric(a, sort.key);
+        let bv = frontier_metric(b, sort.key);
+        cmp_opt_for_dir(av, bv, sort.dir)
+    });
+}
+
+pub fn frontier_metric(row: &frontiercode::Row, key: FrontierKey) -> Option<f64> {
+    match key {
+        FrontierKey::Score => row.score,
+        FrontierKey::Pass => row.pass_rate,
+        FrontierKey::Cost => row.cost,
+        FrontierKey::Tokens => row.tokens,
+        FrontierKey::Time => row.minutes,
     }
 }
 

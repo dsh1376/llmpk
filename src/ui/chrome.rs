@@ -7,8 +7,8 @@ use ratatui::{
 };
 
 use super::{
-    aa_board, agents, deepswe_board, filter_is_active, format_filter_label, panel, truncate,
-    AppState, View, SPINNER_FRAMES, VERSION,
+    aa_board, agents, filter_is_active, format_filter_label, frontier_board, panel, slop_board,
+    truncate, AppState, View, SPINNER_FRAMES, VERSION,
 };
 use crate::board::{Board, Data, Status};
 
@@ -24,7 +24,14 @@ pub(super) fn render_help_overlay(frame: &mut Frame, area: Rect, scroll: &mut u1
             "AA Agents",
             "artificialanalysis.ai coding-agent benchmark index",
         ),
-        help_row("DeepSWE", "datacurve.ai DeepSWE coding-agent benchmark"),
+        help_row(
+            "Slopalytics",
+            "slopalytics.com cost, time, and tokens per task by reasoning effort",
+        ),
+        help_row(
+            "FrontierCode",
+            "cognition.com mergeability benchmark for coding agents",
+        ),
         help_row(
             "AI Tracker",
             "live.aitracker.bot feed of new model releases and leaks",
@@ -34,7 +41,7 @@ pub(super) fn render_help_overlay(frame: &mut Frame, area: Rect, scroll: &mut u1
         help_row("q  Esc  Ctrl-C", "Quit llmpk"),
         help_row("?  h", "Toggle this help overlay (j/k, PgUp/PgDn scroll)"),
         help_row("[   ]", "Previous / next board (cycles)"),
-        help_row("1  2  3  4", "Jump directly to board 1-4"),
+        help_row("1 - 5", "Jump directly to board 1-5"),
         help_row("r", "Reload the current board (refetch from source)"),
         help_row("y", "Copy selected model name to clipboard (OSC 52)"),
         help_row("↑  ↓  k  j", "Move the highlighted row"),
@@ -63,12 +70,18 @@ pub(super) fn render_help_overlay(frame: &mut Frame, area: Rect, scroll: &mut u1
         help_row("t", "Time — mean wall-clock task runtime"),
         help_row("u", "Tokens — mean total token usage per task"),
         help_row("s", "Turns — mean agent turns per task"),
-        Line::styled("  DeepSWE sort keys", dim),
-        help_row("a", "Pass@1 — attempt pass rate"),
-        help_row("p", "Cost — mean USD per task"),
-        help_row("t", "Time — mean duration in seconds"),
-        help_row("u", "Tokens — mean total tokens"),
-        help_row("s", "Steps — mean agent steps"),
+        Line::styled("  Slopalytics sort keys", dim),
+        help_row("i", "Intelligence — AA index (~ marks AA estimates)"),
+        help_row("p", "Cost — mean USD per index task"),
+        help_row("t", "Time — mean wall-clock time per index task"),
+        help_row("u", "Tokens — mean output tokens per index task"),
+        help_row("s", "Speed — output tokens per second"),
+        Line::styled("  FrontierCode sort keys", dim),
+        help_row("i", "Score — mergeability of the agent's PR (best effort)"),
+        help_row("a", "Pass — share of tasks whose tests pass"),
+        help_row("p", "Cost — USD per rollout"),
+        help_row("u", "Tokens — output tokens per rollout"),
+        help_row("t", "Time — minutes per rollout"),
         Line::styled("  AI Tracker sort keys", dim),
         help_row(
             "t",
@@ -253,7 +266,8 @@ fn tab_label(board: Board) -> &'static str {
     match board {
         Board::Aa => "AA",
         Board::AaAgents => "AAg",
-        Board::DeepSwe => "DSwe",
+        Board::Slop => "Slop",
+        Board::Frontier => "FC",
         Board::Tracker => "AIT",
     }
 }
@@ -289,7 +303,16 @@ fn render_header(frame: &mut Frame, area: Rect, app: &AppState) {
             };
             Span::styled(label, Style::default().fg(Color::Green))
         }
-        Some(Status::Loaded(Data::DeepSwe(v))) => {
+        Some(Status::Loaded(Data::Slop(v))) => {
+            let visible = app.row_count(board);
+            let label = if filter_is_active(query) {
+                format!("{visible}/{} models", v.len())
+            } else {
+                format!("{} models", v.len())
+            };
+            Span::styled(label, Style::default().fg(Color::Green))
+        }
+        Some(Status::Loaded(Data::Frontier(v))) => {
             let visible = app.row_count(board);
             let label = if filter_is_active(query) {
                 format!("{visible}/{} models", v.len())
@@ -328,10 +351,15 @@ fn render_header(frame: &mut Frame, area: Rect, app: &AppState) {
             agents::agent_key_label(app.agent_sort.key),
             app.agent_sort.dir.arrow()
         ),
-        Board::DeepSwe => format!(
+        Board::Slop => format!(
             "sort: {} {}",
-            deepswe_board::deepswe_key_label(app.deepswe_sort.key),
-            app.deepswe_sort.dir.arrow()
+            slop_board::slop_key_label(app.slop_sort.key),
+            app.slop_sort.dir.arrow()
+        ),
+        Board::Frontier => format!(
+            "sort: {} {}",
+            frontier_board::frontier_key_label(app.frontier_sort.key),
+            app.frontier_sort.dir.arrow()
         ),
         Board::Tracker => format!("sort: Last seen {}", app.tracker_sort.dir.arrow()),
     };
@@ -407,7 +435,8 @@ fn board_source(board: Board) -> &'static str {
     match board {
         Board::Aa => "artificialanalysis.ai/leaderboards/models",
         Board::AaAgents => "artificialanalysis.ai/agents/coding-agents",
-        Board::DeepSwe => "deepswe.datacurve.ai",
+        Board::Slop => "slopalytics.com",
+        Board::Frontier => "cognition.com/frontiercode",
         Board::Tracker => "live.aitracker.bot",
     }
 }
@@ -530,7 +559,8 @@ pub(super) fn render_footer(frame: &mut Frame, area: Rect, app: &AppState) {
     let unfiltered = match app.status.get(&board) {
         Some(Status::Loaded(Data::Aa(v))) => v.len(),
         Some(Status::Loaded(Data::AaAgents(v))) => v.len(),
-        Some(Status::Loaded(Data::DeepSwe(v))) => v.len(),
+        Some(Status::Loaded(Data::Slop(v))) => v.len(),
+        Some(Status::Loaded(Data::Frontier(v))) => v.len(),
         Some(Status::Loaded(Data::Tracker(v))) => v.len(),
         _ => 0,
     };
@@ -566,7 +596,8 @@ pub(super) fn render_footer(frame: &mut Frame, area: Rect, app: &AppState) {
     let sort_keys = match board {
         Board::Aa => "i/s/p/d/c",
         Board::AaAgents => "i/a/p/t/u/s",
-        Board::DeepSwe => "a/p/t/u/s",
+        Board::Slop => "i/p/t/u/s",
+        Board::Frontier => "i/a/p/u/t",
         Board::Tracker => "t",
     };
     let mut actions = vec![(9, hint(sort_keys, " sort")), (6, hint("o", " asc/desc"))];

@@ -2,8 +2,9 @@ mod aa;
 mod aitracker;
 mod board;
 mod coding_agents;
-mod deepswe;
+mod frontiercode;
 mod rsc;
+mod slopalytics;
 mod ui;
 
 use std::io;
@@ -25,7 +26,7 @@ use ratatui::backend::CrosstermBackend;
 use ratatui::Terminal;
 
 use board::{Board, Status};
-use ui::AppState;
+use ui::{AppState, Click};
 
 type Msg = (Board, anyhow::Result<board::Data>);
 
@@ -224,12 +225,17 @@ fn handle_mouse(m: MouseEvent, app: &mut AppState, tx: &mpsc::Sender<Msg>) {
     match m.kind {
         MouseEventKind::ScrollUp => app.move_up(),
         MouseEventKind::ScrollDown => app.move_down(),
-        MouseEventKind::Down(MouseButton::Left) => {
-            if let Some(idx) = app.tab_at(m.column, m.row) {
+        MouseEventKind::Down(MouseButton::Left) => match app.hit_test(m.column, m.row) {
+            Click::Tab(idx) => {
                 app.select_board(idx);
                 ensure_loaded(app, tx);
             }
-        }
+            // Same as pressing the column's sort key: a second click flips
+            // the direction.
+            Click::Header(key) => app.cycle_sort(key),
+            Click::Row(idx) => app.select_row(idx),
+            Click::Nothing => {}
+        },
         _ => {}
     }
 }

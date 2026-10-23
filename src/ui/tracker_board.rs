@@ -10,7 +10,7 @@ use ratatui::{
 
 use super::{
     accent_color_for_provider, color_for_seed, detail_line, header_cell, header_row_style,
-    highlight_matches, panel, selected_row_style, truncate,
+    highlight_matches, panel, selected_row_style, table_hit, truncate, TableHit,
 };
 use crate::aitracker;
 use crate::board::Board;
@@ -27,6 +27,15 @@ pub(super) enum TrackerColumn {
 }
 
 impl TrackerColumn {
+    /// The sort key a click on this column's header selects.
+    fn sort_key(self) -> Option<char> {
+        match self {
+            TrackerColumn::Seen => Some('t'),
+            TrackerColumn::Date => Some('t'),
+            _ => None,
+        }
+    }
+
     fn header(self) -> &'static str {
         match self {
             TrackerColumn::Index => "#",
@@ -78,7 +87,7 @@ pub(super) fn render_tracker_table(
     board: Board,
     filter_tokens: &[String],
     compact: bool,
-) {
+) -> TableHit {
     let now = unix_now();
     let columns = tracker_columns(area.width);
     let sorted = TrackerColumn::Seen;
@@ -102,7 +111,7 @@ pub(super) fn render_tracker_table(
     let widths: Vec<Constraint> = columns.iter().map(|column| column.width()).collect();
     let title = format!("AI Tracker ({})", indices.len());
     let spacing = if compact { 0 } else { 1 };
-    let table = Table::new(rows, widths)
+    let table = Table::new(rows, widths.clone())
         .header(header.height(1))
         .row_highlight_style(selected_row_style())
         .highlight_symbol("> ")
@@ -111,6 +120,13 @@ pub(super) fn render_tracker_table(
 
     let st = table_state.entry(board).or_default();
     frame.render_stateful_widget(table, area, st);
+    table_hit(
+        area,
+        &widths,
+        spacing,
+        st,
+        columns.iter().map(|c| c.sort_key()).collect(),
+    )
 }
 
 fn tracker_cell(
