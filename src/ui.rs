@@ -11,8 +11,11 @@ mod aa_board;
 mod agents;
 mod chart;
 mod chrome;
+mod daily_board;
 mod filter;
 mod frontier_board;
+mod hot_board;
+mod reset_board;
 mod slop_board;
 mod sort;
 pub mod state;
@@ -220,6 +223,81 @@ fn render_body(frame: &mut Frame, area: Rect, app: &mut AppState) {
                 tracker_board::render_tracker_detail(frame, detail_area, page);
             }
         }
+        Some(Status::Loaded(Data::Hot(topics))) => {
+            if indices.is_empty() && filter_is_active(&query) {
+                chrome::render_filter_empty(frame, area, &query);
+                return;
+            }
+            let selected = selected_row(table_state, board);
+            let (table_area, detail_area) = split_tracker_body(area);
+            hit = Some(hot_board::render_hot_table(
+                frame,
+                table_area,
+                topics,
+                &indices,
+                table_state,
+                board,
+                &filter_tokens,
+                app.compact,
+            ));
+            if let Some(detail_area) = detail_area {
+                let topic = indices.get(selected).and_then(|&i| topics.get(i));
+                hot_board::render_hot_detail(frame, detail_area, topic);
+            }
+        }
+        Some(Status::Loaded(Data::Daily(items))) => {
+            if indices.is_empty() && filter_is_active(&query) {
+                chrome::render_filter_empty(frame, area, &query);
+                return;
+            }
+            let selected = selected_row(table_state, board);
+            let (table_area, detail_area) = split_tracker_body(area);
+            hit = Some(daily_board::render_daily_table(
+                frame,
+                table_area,
+                items,
+                &indices,
+                table_state,
+                board,
+                &filter_tokens,
+                app.compact,
+            ));
+            if let Some(detail_area) = detail_area {
+                let item = indices.get(selected).and_then(|&i| items.get(i));
+                daily_board::render_daily_detail(frame, detail_area, item);
+            }
+        }
+        Some(Status::Loaded(Data::Resets(events))) => {
+            if indices.is_empty() && filter_is_active(&query) {
+                chrome::render_filter_empty(frame, area, &query);
+                return;
+            }
+            let selected = selected_row(table_state, board);
+            let (table_area, detail_area) = split_tracker_body(area);
+            if view == View::Chart {
+                reset_board::render_reset_calendar(frame, table_area, events, &indices, selected);
+                if let Some(detail_area) = detail_area {
+                    let event = indices.get(selected).and_then(|&i| events.get(i));
+                    reset_board::render_reset_detail(frame, detail_area, event);
+                }
+                // No table drawn: the hit set at the top stays `None`.
+                return;
+            }
+            hit = Some(reset_board::render_reset_table(
+                frame,
+                table_area,
+                events,
+                &indices,
+                table_state,
+                board,
+                &filter_tokens,
+                app.compact,
+            ));
+            if let Some(detail_area) = detail_area {
+                let event = indices.get(selected).and_then(|&i| events.get(i));
+                reset_board::render_reset_detail(frame, detail_area, event);
+            }
+        }
         Some(Status::Error(e)) => {
             chrome::render_error(frame, area, board, e);
         }
@@ -228,6 +306,16 @@ fn render_body(frame: &mut Frame, area: Rect, app: &mut AppState) {
         }
     }
     app.set_table_hit(hit);
+}
+
+fn selected_row(
+    table_state: &std::collections::HashMap<crate::board::Board, TableState>,
+    board: crate::board::Board,
+) -> usize {
+    table_state
+        .get(&board)
+        .and_then(TableState::selected)
+        .unwrap_or(0)
 }
 
 fn split_body(area: Rect) -> (Rect, Option<Rect>) {
@@ -1070,9 +1158,14 @@ mod tests {
             "3 Slopalytics",
             "4 FrontierCode",
             "5 AI Tracker",
+            "6 AIHOT Hot",
+            "7 AIHOT Daily",
+            "8 Codex Resets",
         ];
-        let short = ["1 AA", "2 AAg", "3 Slop", "4 FC", "5 AIT"];
-        for (width, labels) in [(120u16, wide), (44, short)] {
+        let short = [
+            "1 AA", "2 AAg", "3 Slop", "4 FC", "5 AIT", "6 Hot", "7 Daily", "8 CxR",
+        ];
+        for (width, labels) in [(120u16, wide), (70, short)] {
             let mut app = AppState::new();
             let mut terminal =
                 ratatui::Terminal::new(ratatui::backend::TestBackend::new(width, 30)).unwrap();
@@ -1148,6 +1241,95 @@ mod tests {
         assert!(text.contains("sort: Last seen ↓"));
         assert!(!text.contains("view:"));
         assert!(!text.contains(" chart "));
+    }
+
+    #[test]
+    fn render_draws_aihot_boards_from_fixtures() {
+        let hot = include_str!("../tests/fixtures/aihot_hot_topics.json");
+        let daily = include_str!("../tests/fixtures/aihot_daily.json");
+        let resets = include_str!("../tests/fixtures/aihot_codex_resets.json");
+        let mut app = AppState::new();
+        app.set_status(
+            Board::Hot,
+            Status::Loaded(Data::Hot(crate::aihot::parse_hot(hot).unwrap())),
+        );
+        app.set_status(
+            Board::Daily,
+            Status::Loaded(Data::Daily(crate::aihot::parse_daily(daily).unwrap())),
+        );
+        app.set_status(
+            Board::Resets,
+            Status::Loaded(Data::Resets(crate::aihot::parse_resets(resets).unwrap())),
+        );
+
+        // Assert on ASCII only: wide CJK cells leave filler cells in the
+        // test buffer.
+        let cases: [(usize, &[&str]); 3] = [
+            (
+                5,
+                &["AIHOT Hot (3)", "sort: Rank ↑", "Src", "Sources     20"],
+            ),
+            (
+                6,
+                &[
+                    "AIHOT Daily 2026-10-24 (8)",
+                    "sort: Report order ↑",
+                    "Flash",
+                ],
+            ),
+            (
+                7,
+                &[
+                    "Codex Resets (4)",
+                    "sort: Announced ↓",
+                    "likely",
+                    "credit",
+                    "everyone's paid accounts",
+                    "by 2026-10-23 17:00 UTC",
+                ],
+            ),
+        ];
+        for (idx, expected) in cases {
+            app.select_board(idx);
+            app.toggle_view();
+            let mut terminal =
+                ratatui::Terminal::new(ratatui::backend::TestBackend::new(140, 30)).unwrap();
+            terminal.draw(|frame| render(frame, &mut app)).unwrap();
+            let text = rendered_text(terminal.backend());
+            assert_eq!(app.current_view(), View::Table);
+            for needle in expected {
+                assert!(text.contains(needle), "board {idx}: missing {needle:?}");
+            }
+        }
+    }
+
+    #[test]
+    fn codex_resets_open_on_the_calendar() {
+        let resets = include_str!("../tests/fixtures/aihot_codex_resets.json");
+        let mut app = AppState::new();
+        app.set_status(
+            Board::Resets,
+            Status::Loaded(Data::Resets(crate::aihot::parse_resets(resets).unwrap())),
+        );
+        app.select_board(7);
+        assert_eq!(app.current_view(), View::Chart);
+
+        let mut terminal =
+            ratatui::Terminal::new(ratatui::backend::TestBackend::new(150, 40)).unwrap();
+        terminal.draw(|frame| render(frame, &mut app)).unwrap();
+        let text = rendered_text(terminal.backend());
+        for needle in [
+            "Codex Resets calendar (4 events)",
+            "view: calendar",
+            "m table",
+            "October 2026",
+            "3 events",
+            "Mo   Tu   We",
+            "Last 90 days:",
+            "Usage reset",
+        ] {
+            assert!(text.contains(needle), "missing {needle:?}");
+        }
     }
 
     #[test]

@@ -36,14 +36,26 @@ pub(super) fn render_help_overlay(frame: &mut Frame, area: Rect, scroll: &mut u1
             "AI Tracker",
             "live.aitracker.bot feed of new model releases and leaks",
         ),
+        help_row(
+            "AIHOT Hot",
+            "aihot.news top 10 AI events of the last 48 hours (Chinese)",
+        ),
+        help_row(
+            "AIHOT Daily",
+            "aihot.news latest daily report, by section (Chinese)",
+        ),
+        help_row(
+            "Codex Resets",
+            "aihot.news calendar of Codex usage resets and reset credits",
+        ),
         Line::from(""),
         Line::styled("Navigation", head),
         help_row("q  Esc  Ctrl-C", "Quit llmpk"),
         help_row("?  h", "Toggle this help overlay (j/k, PgUp/PgDn scroll)"),
         help_row("[   ]", "Previous / next board (cycles)"),
-        help_row("1 - 5", "Jump directly to board 1-5"),
+        help_row("1 - 8", "Jump directly to board 1-8"),
         help_row("r", "Reload the current board (refetch from source)"),
-        help_row("y", "Copy selected model name to clipboard (OSC 52)"),
+        help_row("y", "Copy selected name, title, or post URL (OSC 52)"),
         help_row("↑  ↓  k  j", "Move the highlighted row"),
         help_row("PgUp  PgDn", "Move by 10 rows"),
         help_row("Home  End  g  G", "Jump to first / last row"),
@@ -54,7 +66,10 @@ pub(super) fn render_help_overlay(frame: &mut Frame, area: Rect, scroll: &mut u1
         ),
         Line::from(""),
         Line::styled("View & sort", head),
-        help_row("m", "Toggle table / chart view (not on AI Tracker)"),
+        help_row(
+            "m",
+            "Toggle table / chart (1-4) or calendar (Codex Resets) view",
+        ),
         help_row("o", "Reverse current sort direction (asc <-> desc)"),
         help_row("z", "Toggle compact mode (tighter column spacing)"),
         Line::styled("  AA sort keys", dim),
@@ -89,6 +104,12 @@ pub(super) fn render_help_overlay(frame: &mut Frame, area: Rect, scroll: &mut u1
         help_row(
             "t",
             "Last seen — newest sighting first; stage is release or leak",
+        ),
+        Line::styled("  AIHOT sort keys", dim),
+        help_row("i", "Hot: rank (by source count); Daily: report order"),
+        help_row(
+            "t",
+            "Codex Resets: announced time; j/k also walk the calendar",
         ),
         Line::from(""),
         Line::styled("Filter", head),
@@ -279,6 +300,9 @@ fn tab_label(board: Board) -> &'static str {
         Board::Slop => "Slop",
         Board::Frontier => "FC",
         Board::Tracker => "AIT",
+        Board::Hot => "Hot",
+        Board::Daily => "Daily",
+        Board::Resets => "CxR",
     }
 }
 
@@ -340,6 +364,9 @@ fn render_header(frame: &mut Frame, area: Rect, app: &AppState) {
             };
             Span::styled(label, Style::default().fg(Color::Green))
         }
+        Some(Status::Loaded(Data::Hot(v))) => row_count_span(app, v.len(), "topics"),
+        Some(Status::Loaded(Data::Daily(v))) => row_count_span(app, v.len(), "items"),
+        Some(Status::Loaded(Data::Resets(v))) => row_count_span(app, v.len(), "events"),
         Some(Status::Loading) | None => Span::styled(
             format!("{} loading...", spinner_frame()),
             Style::default().fg(Color::Yellow),
@@ -372,6 +399,9 @@ fn render_header(frame: &mut Frame, area: Rect, app: &AppState) {
             app.frontier_sort.dir.arrow()
         ),
         Board::Tracker => format!("sort: Last seen {}", app.tracker_sort.dir.arrow()),
+        Board::Hot => format!("sort: Rank {}", app.hot_sort.dir.arrow()),
+        Board::Daily => format!("sort: Report order {}", app.daily_sort.dir.arrow()),
+        Board::Resets => format!("sort: Announced {}", app.reset_sort.dir.arrow()),
     };
     let source = board_source(board);
 
@@ -390,7 +420,7 @@ fn render_header(frame: &mut Frame, area: Rect, app: &AppState) {
         items.push((
             2,
             vec![Span::styled(
-                view_label(app.current_view()),
+                view_label(board, app.current_view()),
                 Style::default().fg(Color::Blue),
             )],
         ));
@@ -440,6 +470,17 @@ pub(super) fn render_filter_empty(frame: &mut Frame, area: Rect, query: &str) {
     frame.render_widget(p, area);
 }
 
+/// Row count for the header, as `visible/total noun` while a filter is on.
+fn row_count_span(app: &AppState, total: usize, noun: &str) -> Span<'static> {
+    let visible = app.row_count(app.current_board());
+    let label = if filter_is_active(app.current_filter()) {
+        format!("{visible}/{total} {noun}")
+    } else {
+        format!("{total} {noun}")
+    };
+    Span::styled(label, Style::default().fg(Color::Green))
+}
+
 /// Where a board's data comes from, as shown in the info line.
 fn board_source(board: Board) -> &'static str {
     match board {
@@ -448,6 +489,9 @@ fn board_source(board: Board) -> &'static str {
         Board::Slop => "slopalytics.com",
         Board::Frontier => "cognition.com/frontiercode",
         Board::Tracker => "live.aitracker.bot",
+        Board::Hot => "aihot.news/hot",
+        Board::Daily => "aihot.news/daily",
+        Board::Resets => "aihot.news/codex-reset",
     }
 }
 
@@ -572,6 +616,9 @@ pub(super) fn render_footer(frame: &mut Frame, area: Rect, app: &AppState) {
         Some(Status::Loaded(Data::Slop(v))) => v.len(),
         Some(Status::Loaded(Data::Frontier(v))) => v.len(),
         Some(Status::Loaded(Data::Tracker(v))) => v.len(),
+        Some(Status::Loaded(Data::Hot(v))) => v.len(),
+        Some(Status::Loaded(Data::Daily(v))) => v.len(),
+        Some(Status::Loaded(Data::Resets(v))) => v.len(),
         _ => 0,
     };
 
@@ -584,7 +631,8 @@ pub(super) fn render_footer(frame: &mut Frame, area: Rect, app: &AppState) {
         (4, hint("r", " reload")),
         (3, hint("y", " copy")),
     ];
-    if total > 0 && app.current_view() == View::Table {
+    // The calendar follows the selected row too.
+    if total > 0 && (app.current_view() == View::Table || board == Board::Resets) {
         nav.push((
             8,
             vec![Span::styled(
@@ -608,11 +656,13 @@ pub(super) fn render_footer(frame: &mut Frame, area: Rect, app: &AppState) {
         Board::AaAgents => "i/a/p/t/u/s",
         Board::Slop => "i/p/t/u/s",
         Board::Frontier => "i/a/p/u/t",
-        Board::Tracker => "t",
+        Board::Tracker | Board::Resets => "t",
+        Board::Hot | Board::Daily => "i",
     };
     let mut actions = vec![(9, hint(sort_keys, " sort")), (6, hint("o", " asc/desc"))];
     if board.has_chart() {
         let view_action = match app.current_view() {
+            View::Table if board == Board::Resets => " calendar",
             View::Table => " chart",
             View::Chart => " table",
         };
@@ -680,9 +730,10 @@ fn text(s: &str) -> Span<'_> {
     Span::raw(s)
 }
 
-fn view_label(view: View) -> &'static str {
-    match view {
-        View::Table => "view: table",
-        View::Chart => "view: chart",
+fn view_label(board: Board, view: View) -> &'static str {
+    match (view, board) {
+        (View::Table, _) => "view: table",
+        (View::Chart, Board::Resets) => "view: calendar",
+        (View::Chart, _) => "view: chart",
     }
 }

@@ -59,6 +59,9 @@ pub struct AppState {
     pub slop_sort: SlopSort,
     pub frontier_sort: FrontierSort,
     pub tracker_sort: TrackerSort,
+    pub hot_sort: DirSort,
+    pub daily_sort: DirSort,
+    pub reset_sort: DirSort,
     filter_caches: HashMap<Board, FilterCache>,
     pub copy_feedback_at: Option<Instant>,
     /// Tab bar area and each tab's `[start, end)` columns from the last
@@ -76,6 +79,15 @@ fn track_row(track: Rect, row: u16, total: usize) -> usize {
     }
     let share = f64::from(row - track.y) / f64::from(track.height - 1);
     ((share * last as f64).round() as usize).min(last)
+}
+
+/// Codex Resets opens on its calendar; every other board on its table.
+fn default_view(board: Board) -> View {
+    if board == Board::Resets {
+        View::Chart
+    } else {
+        View::Table
+    }
 }
 
 impl AppState {
@@ -109,6 +121,9 @@ impl AppState {
                 dir: SortDir::Desc,
             },
             tracker_sort: TrackerSort { dir: SortDir::Desc },
+            hot_sort: DirSort { dir: SortDir::Asc },
+            daily_sort: DirSort { dir: SortDir::Asc },
+            reset_sort: DirSort { dir: SortDir::Desc },
             filter_caches: HashMap::new(),
             copy_feedback_at: None,
             tab_bar: Rect::default(),
@@ -118,10 +133,11 @@ impl AppState {
     }
 
     pub fn current_view(&self) -> View {
+        let board = self.current_board();
         self.views
-            .get(&self.current_board())
+            .get(&board)
             .copied()
-            .unwrap_or(View::Table)
+            .unwrap_or_else(|| default_view(board))
     }
 
     pub fn toggle_help(&mut self) {
@@ -211,7 +227,7 @@ impl AppState {
             View::Table => View::Chart,
             View::Chart => View::Table,
         };
-        if next == View::Table {
+        if next == default_view(board) {
             self.views.remove(&board);
         } else {
             self.views.insert(board, next);
@@ -313,6 +329,9 @@ impl AppState {
             Some(Status::Loaded(Data::Slop(v))) => count_matching_slop(v, query),
             Some(Status::Loaded(Data::Frontier(v))) => count_matching_frontier(v, query),
             Some(Status::Loaded(Data::Tracker(v))) => count_matching_tracker(v, query),
+            Some(Status::Loaded(Data::Hot(v))) => count_matching(v, query, hot_matches_filter),
+            Some(Status::Loaded(Data::Daily(v))) => count_matching(v, query, daily_matches_filter),
+            Some(Status::Loaded(Data::Resets(v))) => count_matching(v, query, reset_matches_filter),
             _ => 0,
         }
     }
@@ -510,6 +529,21 @@ impl AppState {
                     self.tracker_sort.dir = self.tracker_sort.dir.toggle();
                 }
             }
+            Board::Hot => {
+                if key == 'i' {
+                    self.hot_sort.dir = self.hot_sort.dir.toggle();
+                }
+            }
+            Board::Daily => {
+                if key == 'i' {
+                    self.daily_sort.dir = self.daily_sort.dir.toggle();
+                }
+            }
+            Board::Resets => {
+                if key == 't' {
+                    self.reset_sort.dir = self.reset_sort.dir.toggle();
+                }
+            }
         }
         self.resort_current();
     }
@@ -530,6 +564,15 @@ impl AppState {
             Some(Status::Loaded(Data::Tracker(pages))) => {
                 pages.get(data_idx).map(|p| p.model.clone())
             }
+            Some(Status::Loaded(Data::Hot(topics))) => {
+                topics.get(data_idx).map(|t| t.title.clone())
+            }
+            Some(Status::Loaded(Data::Daily(items))) => {
+                items.get(data_idx).map(|i| i.title.clone())
+            }
+            Some(Status::Loaded(Data::Resets(events))) => events
+                .get(data_idx)
+                .map(|e| e.post_url().unwrap_or(&e.id).to_string()),
             _ => None,
         }
     }
@@ -541,6 +584,9 @@ impl AppState {
             Board::Slop => self.slop_sort.dir = self.slop_sort.dir.toggle(),
             Board::Frontier => self.frontier_sort.dir = self.frontier_sort.dir.toggle(),
             Board::Tracker => self.tracker_sort.dir = self.tracker_sort.dir.toggle(),
+            Board::Hot => self.hot_sort.dir = self.hot_sort.dir.toggle(),
+            Board::Daily => self.daily_sort.dir = self.daily_sort.dir.toggle(),
+            Board::Resets => self.reset_sort.dir = self.reset_sort.dir.toggle(),
         }
         self.resort_current();
     }
@@ -555,6 +601,9 @@ impl AppState {
                 &self.slop_sort,
                 &self.frontier_sort,
                 &self.tracker_sort,
+                &self.hot_sort,
+                &self.daily_sort,
+                &self.reset_sort,
             );
         }
         self.filter_caches.remove(&board);
@@ -572,6 +621,9 @@ impl AppState {
             &self.slop_sort,
             &self.frontier_sort,
             &self.tracker_sort,
+            &self.hot_sort,
+            &self.daily_sort,
+            &self.reset_sort,
         );
     }
 
@@ -645,6 +697,15 @@ impl AppState {
                             .map(|(i, _)| i)
                             .collect()
                     }
+                }
+                Some(Status::Loaded(Data::Hot(topics))) => {
+                    matching_indices(topics, query, hot_matches_filter)
+                }
+                Some(Status::Loaded(Data::Daily(items))) => {
+                    matching_indices(items, query, daily_matches_filter)
+                }
+                Some(Status::Loaded(Data::Resets(events))) => {
+                    matching_indices(events, query, reset_matches_filter)
                 }
                 _ => Vec::new(),
             };

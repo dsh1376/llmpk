@@ -1,0 +1,70 @@
+{
+  "schemaVersion": 1,
+  "count": 3,
+  "items": [
+    {
+      "rank": 1,
+      "id": "okgjn7r72wo7c5j0bu3o1vbie",
+      "title": "月之暗面发布 Kimi K3.1 Pro，权重定于 11 月 4 日前释出",
+      "source": {
+        "name": "Moonshot AI：Kimi Blog"
+      },
+      "links": {
+        "aihot": "https://aihot.news/items/okgjn7r72wo7c5j0bu3o1vbie",
+        "original": "https://www.kimi.com/blog/kimi-k3-1-pro",
+        "story": "https://aihot.virxact.com/story/6cbe9dba-8fec-42b1-92ab-5a9ccf944190"
+      },
+      "sourceCount": 20,
+      "signalCount": 56,
+      "participantCount": 76,
+      "sourceNames": [
+        "X：Tencent WorkBuddy (@WorkBuddy_AI)",
+        "X：卡兹克 (@Khazix0918)",
+        "公众号：数字生命卡兹克"
+      ],
+      "latestAt": "2026-10-24T04:19:28.000Z"
+    },
+    {
+      "rank": 2,
+      "id": "ss1c1fu81134agwcw2ae90gai",
+      "title": "OpenAI 前沿训练断网，红队测出 Brotli 漏洞",
+      "source": {
+        "name": "OpenAI：官网动态（RSS · 排除企业/客户案例）"
+      },
+      "links": {
+        "aihot": "https://aihot.news/items/ss1c1fu81134agwcw2ae90gai",
+        "original": "https://openai.com/index/securing-our-frontier-model-training-environment",
+        "story": "https://aihot.virxact.com/story/c83d8538-d103-4a28-bd4a-629a69136b90"
+      },
+      "sourceCount": 8,
+      "signalCount": 18,
+      "participantCount": 26,
+      "sourceNames": [
+        "X：Dex Horthy（HumanLayer）(@dexhorthy)",
+        "X：Rohan Paul (@rohanpaul_ai)",
+        "IT之家·人工智能"
+      ],
+      "latestAt": "2026-10-24T06:46:06.000Z"
+    },
+    {
+      "rank": 3,
+      "id": "r4saw5foxj8v0eb82f3b66cs0",
+      "title": "OpenAI称AI协助发现PHP核心漏洞，补丁已发布",
+      "source": {
+        "name": "OpenAI：官网动态（RSS · 排除企业/客户案例）"
+      },
+      "links": {
+        "aihot": "https://aihot.news/items/r4saw5foxj8v0eb82f3b66cs0",
+        "original": "https://openai.com/index/coordinated-disclosure-of-critical-vulnerabilities/",
+        "story": "https://aihot.virxact.com/story/17f9865a-cef7-4d98-9742-0796331c81ea"
+      },
+      "sourceCount": 1,
+      "signalCount": 38,
+      "participantCount": 39,
+      "sourceNames": [
+        "Ars Technica：AI（RSS）"
+      ],
+      "latestAt": "2026-10-22T15:25:02.000Z"
+    }
+  ]
+}

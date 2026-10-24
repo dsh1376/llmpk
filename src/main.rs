@@ -1,4 +1,5 @@
 mod aa;
+mod aihot;
 mod aitracker;
 mod board;
 mod coding_agents;

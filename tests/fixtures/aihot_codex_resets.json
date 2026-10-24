@@ -1,0 +1,169 @@
+{
+  "schemaVersion": 1,
+  "checkedAt": "2026-10-24T15:10:31.696+08:00",
+  "count": 4,
+  "historyFrom": "2026-06-12T00:00:00.000+08:00",
+  "events": [
+    {
+      "id": "reset-2113492502355562875-1-1",
+      "type": "direct_reset",
+      "label": "全员重置",
+      "displayLabel": "重置（形式未明确）",
+      "presentation": {
+        "status": "likely_completed",
+        "scopeKnown": false,
+        "scopeLabel": null,
+        "kindExplicit": false,
+        "timeInferred": false,
+        "audienceZh": null,
+        "productsZh": null
+      },
+      "estimate": {
+        "from": "2026-10-23T15:00:00.000+08:00",
+        "through": "2026-10-24T01:00:00.000+08:00",
+        "basis": "model",
+        "label": "北京时间 10月23日 15:00–10月24日 01:00",
+        "reason": "模型推算：原话明确说明天太平洋时间上午10点前落地，因此窗口取发帖后至该截止时刻。"
+      },
+      "status": "announced",
+      "title": "额度应已重置",
+      "scope": "",
+      "createdAt": "2026-10-23T12:47:34.000+08:00",
+      "updatedAt": "2026-10-23T12:47:34.000+08:00",
+      "confirmedAt": null,
+      "occurredOn": null,
+      "confirmationBasis": null,
+      "schedule": {
+        "precision": "deadline",
+        "from": "2026-10-24T01:00:00.000+08:00",
+        "through": "2026-10-24T01:00:00.000+08:00",
+        "label": "北京时间预计 10月24日 01:00 前"
+      },
+      "posts": [
+        {
+          "id": "2113492502355562875",
+          "publishedAt": "2026-10-23T12:47:34.000+08:00",
+          "stage": "预告",
+          "text": "明天太平洋时间上午10点前落地，同时还有一个小版本发布。",
+          "originalText": "Landing tomorrow before 10am PST together with a small ship.",
+          "url": "https://x.com/thsottiaux/status/2113492502355562875"
+        }
+      ],
+      "url": "https://aihot.news/codex-reset"
+    },
+    {
+      "id": "reset-2112432076767289678-1-1",
+      "type": "direct_reset",
+      "label": "全员重置",
+      "displayLabel": "重置（形式未明确）",
+      "presentation": {
+        "status": "confirmed",
+        "scopeKnown": false,
+        "scopeLabel": null,
+        "kindExplicit": false,
+        "timeInferred": false,
+        "audienceZh": null,
+        "productsZh": null
+      },
+      "estimate": null,
+      "status": "confirmed",
+      "title": "Tibo 确认重置",
+      "scope": "",
+      "createdAt": "2026-10-20T14:33:48.000+08:00",
+      "updatedAt": "2026-10-20T14:33:48.000+08:00",
+      "confirmedAt": "2026-10-20T14:33:48.000+08:00",
+      "occurredOn": null,
+      "confirmationBasis": "source_post",
+      "schedule": null,
+      "posts": [
+        {
+          "id": "2112432076767289678",
+          "publishedAt": "2026-10-20T14:33:48.000+08:00",
+          "stage": "确认完成",
+          "text": "算了，我们还在忙……然后重置了。好好享受吧。",
+          "originalText": "Nevermind, we're still cooking... and reset. Enjoy.",
+          "url": "https://x.com/thsottiaux/status/2112432076767289678"
+        }
+      ],
+      "url": "https://aihot.news/codex-reset"
+    },
+    {
+      "id": "banked-2107913674593644711-1-1",
+      "type": "reset_credit",
+      "label": "发重置卡",
+      "displayLabel": "重置卡发放",
+      "presentation": {
+        "reportedAt": "2026-10-08T03:19:33.000+08:00",
+        "status": "confirmed",
+        "scopeKnown": true,
+        "scopeLabel": "everyone's paid accounts",
+        "kindExplicit": true,
+        "timeInferred": false,
+        "audienceZh": "所有付费账户",
+        "productsZh": "Codex、ChatGPT Work"
+      },
+      "estimate": null,
+      "status": "confirmed",
+      "title": "重置卡已发放",
+      "scope": "所有付费订阅",
+      "createdAt": "2026-10-08T03:19:17.000+08:00",
+      "updatedAt": "2026-10-08T11:44:55.000+08:00",
+      "confirmedAt": "2026-10-08T11:44:55.000+08:00",
+      "occurredOn": null,
+      "confirmationBasis": "source_post",
+      "schedule": {
+        "precision": "deadline",
+        "from": "2026-10-08T15:00:00.000+08:00",
+        "through": "2026-10-08T15:00:00.000+08:00",
+        "label": "北京时间预计 10月8日 15:00 前"
+      },
+      "posts": [
+        {
+          "id": "2108040921044639779",
+          "publishedAt": "2026-10-08T11:44:55.000+08:00",
+          "stage": "确认发卡",
+          "text": "已确认在所有账户中到账。",
+          "originalText": "Confirmed landed across all accounts.",
+          "url": "https://x.com/thsottiaux/status/2108040921044639779"
+        }
+      ],
+      "url": "https://aihot.news/codex-reset"
+    },
+    {
+      "id": "banked-2105173168281506088-1-1",
+      "type": "reset_credit",
+      "label": "发重置卡",
+      "displayLabel": "重置卡发放",
+      "presentation": {
+        "status": "confirmed",
+        "scopeKnown": false,
+        "scopeLabel": null,
+        "kindExplicit": true,
+        "timeInferred": false,
+        "audienceZh": null,
+        "productsZh": "Codex"
+      },
+      "estimate": null,
+      "status": "confirmed",
+      "title": "重置卡已发放",
+      "scope": "",
+      "createdAt": "2026-09-30T13:49:30.000+08:00",
+      "updatedAt": "2026-09-30T13:49:30.000+08:00",
+      "confirmedAt": "2026-09-30T13:49:30.000+08:00",
+      "occurredOn": null,
+      "confirmationBasis": "source_post",
+      "schedule": null,
+      "posts": [
+        {
+          "id": "2105173168281506088",
+          "publishedAt": "2026-09-30T13:49:30.000+08:00",
+          "stage": "确认发卡",
+          "text": "是的，查一下邮件",
+          "originalText": "Yes, check email",
+          "url": "https://x.com/thsottiaux/status/2105173168281506088"
+        }
+      ],
+      "url": "https://aihot.news/codex-reset"
+    }
+  ]
+}

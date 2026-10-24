@@ -1,6 +1,7 @@
 use anyhow::Result;
 
 use crate::aa;
+use crate::aihot;
 use crate::aitracker;
 use crate::coding_agents;
 use crate::frontiercode;
@@ -13,14 +14,20 @@ pub enum Board {
     Slop,
     Frontier,
     Tracker,
+    Hot,
+    Daily,
+    Resets,
 }
 
-const ALL_BOARDS: [Board; 5] = [
+const ALL_BOARDS: [Board; 8] = [
     Board::Aa,
     Board::AaAgents,
     Board::Slop,
     Board::Frontier,
     Board::Tracker,
+    Board::Hot,
+    Board::Daily,
+    Board::Resets,
 ];
 
 impl Board {
@@ -35,6 +42,9 @@ impl Board {
             Board::Slop => "Slopalytics",
             Board::Frontier => "FrontierCode",
             Board::Tracker => "AI Tracker",
+            Board::Hot => "AIHOT Hot",
+            Board::Daily => "AIHOT Daily",
+            Board::Resets => "Codex Resets",
         }
     }
 
@@ -45,6 +55,9 @@ impl Board {
             2 => Some('3'),
             3 => Some('4'),
             4 => Some('5'),
+            5 => Some('6'),
+            6 => Some('7'),
+            7 => Some('8'),
             _ => None,
         }
     }
@@ -56,13 +69,17 @@ impl Board {
             '3' => Some(2),
             '4' => Some(3),
             '5' => Some(4),
+            '6' => Some(5),
+            '7' => Some(6),
+            '8' => Some(7),
             _ => None,
         }
     }
 
-    /// Boards without a numeric metric to plot stay in table view.
+    /// Whether `m` switches to a second view: a chart, or the Codex Resets
+    /// calendar. Boards without one stay in table view.
     pub fn has_chart(self) -> bool {
-        !matches!(self, Board::Tracker)
+        !matches!(self, Board::Tracker | Board::Hot | Board::Daily)
     }
 }
 
@@ -73,6 +90,9 @@ pub enum Data {
     Slop(Vec<slopalytics::Row>),
     Frontier(Vec<frontiercode::Row>),
     Tracker(Vec<aitracker::ModelPage>),
+    Hot(Vec<aihot::HotTopic>),
+    Daily(Vec<aihot::DailyItem>),
+    Resets(Vec<aihot::ResetEvent>),
 }
 
 #[derive(Debug, Clone)]
@@ -89,5 +109,8 @@ pub fn fetch(board: Board) -> Result<Data> {
         Board::Slop => slopalytics::fetch().map(Data::Slop),
         Board::Frontier => frontiercode::fetch().map(Data::Frontier),
         Board::Tracker => aitracker::fetch().map(Data::Tracker),
+        Board::Hot => aihot::fetch_hot().map(Data::Hot),
+        Board::Daily => aihot::fetch_daily().map(Data::Daily),
+        Board::Resets => aihot::fetch_resets().map(Data::Resets),
     }
 }

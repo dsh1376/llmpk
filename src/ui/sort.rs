@@ -1,6 +1,7 @@
 use std::cmp::Ordering;
 
 use crate::aa;
+use crate::aihot;
 use crate::aitracker;
 use crate::coding_agents;
 use crate::frontiercode;
@@ -94,8 +95,16 @@ pub struct TrackerSort {
     pub dir: SortDir,
 }
 
+/// The AIHOT boards each sort on one key: hot rank, daily report order, and
+/// reset announcement time.
+#[derive(Debug, Clone)]
+pub struct DirSort {
+    pub dir: SortDir,
+}
+
 // ── Sort functions ───────────────────────────────────────────────────
 
+#[allow(clippy::too_many_arguments)]
 pub fn sort_with(
     data: &mut crate::board::Data,
     aa_sort: &AaSort,
@@ -103,6 +112,9 @@ pub fn sort_with(
     slop_sort: &SlopSort,
     frontier_sort: &FrontierSort,
     tracker_sort: &TrackerSort,
+    hot_sort: &DirSort,
+    daily_sort: &DirSort,
+    reset_sort: &DirSort,
 ) {
     match data {
         crate::board::Data::Aa(models) => sort_aa(models, aa_sort),
@@ -110,6 +122,17 @@ pub fn sort_with(
         crate::board::Data::Slop(rows) => sort_slop(rows, slop_sort),
         crate::board::Data::Frontier(rows) => sort_frontier(rows, frontier_sort),
         crate::board::Data::Tracker(pages) => sort_tracker(pages, tracker_sort),
+        crate::board::Data::Hot(topics) => {
+            sort_by_metric(topics, hot_sort, |t| t.rank.map(f64::from))
+        }
+        crate::board::Data::Daily(items) => {
+            sort_by_metric(items, daily_sort, |i: &aihot::DailyItem| {
+                Some(i.position as f64)
+            })
+        }
+        crate::board::Data::Resets(events) => {
+            sort_by_metric(events, reset_sort, |e| e.created_unix().map(|t| t as f64))
+        }
     }
 }
 
@@ -198,6 +221,10 @@ fn sort_tracker(pages: &mut [aitracker::ModelPage], sort: &TrackerSort) {
         let bv = b.last_seen_unix().map(|t| t as f64);
         cmp_opt_for_dir(av, bv, sort.dir)
     });
+}
+
+fn sort_by_metric<T>(rows: &mut [T], sort: &DirSort, metric: impl Fn(&T) -> Option<f64>) {
+    rows.sort_by(|a, b| cmp_opt_for_dir(metric(a), metric(b), sort.dir));
 }
 
 fn cmp_opt_for_dir(a: Option<f64>, b: Option<f64>, dir: SortDir) -> Ordering {

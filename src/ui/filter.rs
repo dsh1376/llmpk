@@ -1,4 +1,5 @@
 use crate::aa;
+use crate::aihot;
 use crate::aitracker;
 use crate::coding_agents;
 use crate::frontiercode;
@@ -157,6 +158,68 @@ pub(super) fn count_matching_tracker(pages: &[aitracker::ModelPage], query: &str
         .iter()
         .filter(|page| tracker_matches_filter(page, &tokens))
         .count()
+}
+
+pub fn hot_matches_filter(topic: &aihot::HotTopic, tokens: &[String]) -> bool {
+    let mut fields = vec![
+        topic.title.as_str(),
+        topic.source.name.as_deref().unwrap_or(""),
+    ];
+    fields.extend(topic.source_names.iter().map(String::as_str));
+    lowered_fields_match(&fields, tokens)
+}
+
+pub fn daily_matches_filter(item: &aihot::DailyItem, tokens: &[String]) -> bool {
+    let fields = [
+        item.section.as_str(),
+        item.title.as_str(),
+        item.summary.as_deref().unwrap_or(""),
+        item.source.as_deref().unwrap_or(""),
+    ];
+    lowered_fields_match(&fields, tokens)
+}
+
+pub fn reset_matches_filter(event: &aihot::ResetEvent, tokens: &[String]) -> bool {
+    let fields = [
+        event.kind_label(),
+        event.status_label(),
+        event.scope().unwrap_or(""),
+        event.latest_text().unwrap_or(""),
+        event.created_at.as_deref().unwrap_or(""),
+    ];
+    lowered_fields_match(&fields, tokens)
+}
+
+fn lowered_fields_match(fields: &[&str], tokens: &[String]) -> bool {
+    let lowered: Vec<String> = fields.iter().map(|f| f.to_lowercase()).collect();
+    tokens
+        .iter()
+        .all(|token| token_in_lowered_fields(token, &lowered))
+}
+
+pub(super) fn count_matching<T>(
+    rows: &[T],
+    query: &str,
+    matches: impl Fn(&T, &[String]) -> bool,
+) -> usize {
+    let tokens = filter_tokens(query);
+    if tokens.is_empty() {
+        return rows.len();
+    }
+    rows.iter().filter(|row| matches(row, &tokens)).count()
+}
+
+pub(super) fn matching_indices<T>(
+    rows: &[T],
+    query: &str,
+    matches: impl Fn(&T, &[String]) -> bool,
+) -> Vec<usize> {
+    let tokens = filter_tokens(query);
+    rows.iter()
+        .enumerate()
+        .filter(|(_, row)| tokens.is_empty() || matches(row, &tokens))
+        .map(|(i, _)| i)
+        .collect()
 }
 
 #[cfg(test)]

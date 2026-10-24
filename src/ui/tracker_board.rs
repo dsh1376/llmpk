@@ -253,7 +253,7 @@ fn maker_color(page: &aitracker::ModelPage) -> Color {
         .unwrap_or_else(|| color_for_seed(maker))
 }
 
-fn unix_now() -> i64 {
+pub(super) fn unix_now() -> i64 {
     SystemTime::now()
         .duration_since(UNIX_EPOCH)
         .map(|d| d.as_secs() as i64)

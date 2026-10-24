@@ -1,0 +1,159 @@
+{
+  "schemaVersion": 1,
+  "report": {
+    "date": "2026-10-24",
+    "generatedAt": "2026-10-24T00:00:31.265Z",
+    "windowStart": "2026-10-23T00:00:00.000Z",
+    "windowEnd": "2026-10-24T00:00:00.000Z",
+    "links": {
+      "aihot": "https://aihot.news/daily/2026-10-24"
+    },
+    "attribution": {
+      "name": "AIHOT",
+      "url": "https://aihot.news/daily/2026-10-24"
+    },
+    "lead": {
+      "title": "月之暗面发布 Kimi K3.1 Pro，100 万 token 上下文，开放权重将于 11 月 4 日前释出",
+      "leadParagraph": "月之暗面发布 Kimi K3.1 系列首个模型 Kimi K3.1 Pro，为 3T 级开放权重模型，上下文窗口 100 万 token，并同步推出速度快 2-3 倍的 Kimi K3.1 Pro Highspeed。"
+    },
+    "sections": [
+      {
+        "label": "模型发布/更新",
+        "items": [
+          {
+            "title": "月之暗面发布 Kimi K3.1 Pro，100 万 token 上下文，开放权重将于 11 月 4 日前释出",
+            "summary": "月之暗面发布 Kimi K3.1 系列首个模型 Kimi K3.1 Pro，为 3T 级开放权重模型，上下文窗口 100 万 token，并同步推出速度快 2-3 倍的 Kimi K3.1 Pro Highspeed。",
+            "source": {
+              "name": "Moonshot AI：Kimi Blog"
+            },
+            "links": {
+              "aihot": "https://aihot.news/items/okgjn7r72wo7c5j0bu3o1vbie",
+              "original": "https://www.kimi.com/blog/kimi-k3-1-pro"
+            },
+            "attribution": {
+              "name": "AIHOT",
+              "url": "https://aihot.news/items/okgjn7r72wo7c5j0bu3o1vbie"
+            }
+          },
+          {
+            "title": "MiniMax 开放 M3.1 Flash 权重：428B 总参数、每 token 激活 23B",
+            "summary": "MiniMax 宣布 M3.1 Flash 权重公开，总参数 428B、每 token 激活 23B，提供 Hugging Face 和 ModelScope 下载。",
+            "source": {
+              "name": "X：MiniMax (@MiniMax_AI)"
+            },
+            "links": {
+              "aihot": "https://aihot.news/items/h0u2sgf6ve6eeu0hmswp2a314",
+              "original": "https://x.com/MiniMax_AI/status/2113436864904610008"
+            },
+            "attribution": {
+              "name": "AIHOT",
+              "url": "https://aihot.news/items/h0u2sgf6ve6eeu0hmswp2a314"
+            }
+          }
+        ]
+      },
+      {
+        "label": "产品发布/更新",
+        "items": [
+          {
+            "title": "Kling 4.0 在 fal 上线并向所有客户开放 API 访问",
+            "summary": "fal 宣布 Kling 4.0 正式向公众开放，所有客户均可通过 API 访问。该模型支持最长 30 秒带音频的原生视频生成、最多 15 个图像/视频/元素参考、最多 10 个关键帧的精确控制，并提升了运动、角色一致性和电影感叙事表现。",
+            "source": {
+              "name": "X：fal (@fal)"
+            },
+            "links": {
+              "aihot": "https://aihot.news/items/dy6rkvc23lfrolo4y5hjg7evh",
+              "original": "https://x.com/fal/status/2113646807997620396"
+            },
+            "attribution": {
+              "name": "AIHOT",
+              "url": "https://aihot.news/items/dy6rkvc23lfrolo4y5hjg7evh"
+            }
+          },
+          {
+            "title": "禾赛发布三维世界数据引擎 Kosmo 及 8K AI 空间相机 Kosmo One",
+            "summary": "10 月 14 日，禾赛科技正式发布三维世界数据引擎 Kosmo，同步推出集成 8K 影像系统的 AI 空间相机 Kosmo One 和云平台 Kosmo World，瞄准具身智能与世界模型的真实世界数据需求。",
+            "source": {
+              "name": "禾赛科技"
+            },
+            "links": {
+              "aihot": "https://aihot.news/items/jmd8cc56pi525th3tcccmzxqf",
+              "original": "https://www.hesaitech.com/cn/news/1526"
+            },
+            "attribution": {
+              "name": "AIHOT",
+              "url": "https://aihot.news/items/jmd8cc56pi525th3tcccmzxqf"
+            }
+          }
+        ]
+      },
+      {
+        "label": "行业动态",
+        "items": [
+          {
+            "title": "OpenAI 详解前沿模型训练环境的安全加固与红队测试",
+            "summary": "OpenAI 介绍其前沿模型训练与评估环境的安全加固措施，包括训练期间不接入互联网、构建离线缓存网页世界、以纵深防御多层隔离，并用最强模型（含即将推出的 GPT‑6 Astra Cyber）组成智能体团队进行高算力红队测试。",
+            "source": {
+              "name": "OpenAI：官网动态（RSS · 排除企业/客户案例）"
+            },
+            "links": {
+              "aihot": "https://aihot.news/items/ss1c1fu81134agwcw2ae90gai",
+              "original": "https://openai.com/index/securing-our-frontier-model-training-environment"
+            },
+            "attribution": {
+              "name": "AIHOT",
+              "url": "https://aihot.news/items/ss1c1fu81134agwcw2ae90gai"
+            }
+          },
+          {
+            "title": "iPhone Duo 全球 Apple Store 正式开售，首台可折叠 iPhone 上架",
+            "summary": "10 月 23 日，iPhone Duo 在全球 Apple Store 门店正式开售，顾客可现场体验首款可折叠 iPhone。",
+            "source": {
+              "name": "Apple：Newsroom（RSS）"
+            },
+            "links": {
+              "aihot": "https://aihot.news/items/pjmxomdu7pnp68ckyfels66mt",
+              "original": "https://www.apple.com/newsroom/2026/10/iphone-duo-arrives-at-apple-store-locations-worldwide/"
+            },
+            "attribution": {
+              "name": "AIHOT",
+              "url": "https://aihot.news/items/pjmxomdu7pnp68ckyfels66mt"
+            }
+          }
+        ]
+      }
+    ],
+    "flashes": [
+      {
+        "title": "OpenAI 下调估值目标至 1.25 万亿美元，拟融资至多 300 亿美元",
+        "source": {
+          "name": "The Decoder：AI News（RSS）"
+        },
+        "links": {
+          "aihot": "https://aihot.news/items/qexf6est4uitwd71p3ugedxo6",
+          "original": "https://the-decoder.com/openai-lowers-valuation-target-raises-up-to-30-billion/"
+        },
+        "publishedAt": "2026-10-23T09:49:38.000Z",
+        "attribution": {
+          "name": "AIHOT",
+          "url": "https://aihot.news/items/qexf6est4uitwd71p3ugedxo6"
+        }
+      },
+      {
+        "title": "Uber 向全体员工部署 ChatGPT Work",
+        "source": {
+          "name": "OpenAI：官网动态（RSS · 排除企业/客户案例）"
+        },
+        "links": {
+          "aihot": "https://aihot.news/items/plii1wqnirx2d9s5weab5f45l",
+          "original": "https://openai.com/index/uber-chatgpt-work-rollout"
+        },
+        "publishedAt": "2026-10-22T00:00:00.000Z",
+        "attribution": {
+          "name": "AIHOT",
+          "url": "https://aihot.news/items/plii1wqnirx2d9s5weab5f45l"
+        }
+      }
+    ]
+  }
+}
