@@ -138,7 +138,9 @@ pub fn parse(html: &str) -> Result<Vec<AgentRow>> {
     let stream = rsc::extract_stream(html)?;
     let arr = rsc::first_array_after(&stream, "rows")
         .ok_or_else(|| anyhow!("no rows array in artificialanalysis.ai coding agents page"))?;
-    let rows: Vec<AgentRow> = serde_json::from_str(arr)?;
+    let mut rows: serde_json::Value = serde_json::from_str(arr)?;
+    rsc::resolve_references(&mut rows, &stream);
+    let rows: Vec<AgentRow> = serde_json::from_value(rows)?;
     if rows.is_empty() {
         return Err(anyhow!("coding agents rows array empty"));
     }
@@ -184,6 +186,20 @@ mod tests {
             .expect("fixture should include Grok Build");
         assert_eq!(grok.provider(), "SpaceXAI");
         assert_eq!(grok.provider_color(), Some("#736cd3"));
+    }
+
+    #[test]
+    fn resolves_model_creator_references() {
+        // Since 2026-10-24 AA dedupes `modelCreators` into RSC path
+        // references such as `$32:props:children:props:rows:0:agentCreator`.
+        let html = include_str!("../tests/fixtures/coding_agents_refs.html");
+        let rows = parse(html).expect("parse reference fixture");
+        assert_eq!(rows.len(), 2);
+        assert_eq!(rows[0].agent(), "Grok Build");
+        assert_eq!(rows[0].provider(), "SpaceXAI");
+        assert_eq!(rows[0].provider_color(), Some("#736cd3"));
+        assert_eq!(rows[1].agent(), "Codex");
+        assert_eq!(rows[1].provider(), "OpenAI");
     }
 
     #[test]

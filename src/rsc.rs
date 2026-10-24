@@ -1,9 +1,11 @@
+use std::collections::HashMap;
 use std::sync::LazyLock;
 use std::time::Duration;
 
 use anyhow::{anyhow, Context, Result};
 use regex::Regex;
 use reqwest::blocking::Client;
+use serde_json::Value;
 
 const UA: &str = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) \
                   AppleWebKit/537.36 (KHTML, like Gecko) \
@@ -218,6 +220,101 @@ pub fn fetch_text_new_client(url: &str) -> Result<String> {
         .context("reading response body")
 }
 
+/// How many references a resolved value may chain through before the rest
+/// is left unresolved, so a reference cycle cannot loop forever.
+const MAX_REFERENCE_DEPTH: usize = 8;
+
+/// Replace React Server Components path references in `value` with the
+/// values they point at in `stream`. A reference is a string such as
+/// `"$32:props:children:props:rows:0:agentCreator"`: stream row `32`, then
+/// that path, where `props`, `type`, and `key` step into a
+/// `["$", type, key, props]` element. A reference that does not resolve
+/// stays a string, so the typed parse that follows reports it.
+pub fn resolve_references(value: &mut Value, stream: &str) {
+    let mut rows = HashMap::new();
+    resolve_in(value, stream, &mut rows, 0);
+}
+
+fn resolve_in(
+    value: &mut Value,
+    stream: &str,
+    rows: &mut HashMap<String, Option<Value>>,
+    depth: usize,
+) {
+    match value {
+        Value::String(s) if depth < MAX_REFERENCE_DEPTH => {
+            if let Some(mut target) = lookup_reference(s, stream, rows) {
+                resolve_in(&mut target, stream, rows, depth + 1);
+                *value = target;
+            }
+        }
+        Value::Array(items) => {
+            for item in items {
+                resolve_in(item, stream, rows, depth);
+            }
+        }
+        Value::Object(map) => {
+            for item in map.values_mut() {
+                resolve_in(item, stream, rows, depth);
+            }
+        }
+        _ => {}
+    }
+}
+
+fn lookup_reference(
+    reference: &str,
+    stream: &str,
+    rows: &mut HashMap<String, Option<Value>>,
+) -> Option<Value> {
+    let (id, path) = reference.strip_prefix('$')?.split_once(':')?;
+    if id.is_empty() || !id.bytes().all(|b| b.is_ascii_hexdigit()) {
+        return None;
+    }
+    let row = rows
+        .entry(id.to_string())
+        .or_insert_with(|| parse_stream_row(stream, id))
+        .as_ref()?;
+    let mut current = row;
+    for segment in path.split(':') {
+        current = step(current, segment)?;
+    }
+    Some(current.clone())
+}
+
+/// The JSON value of stream row `<id>:`, which starts the stream or a line.
+fn parse_stream_row(stream: &str, id: &str) -> Option<Value> {
+    let prefix = format!("{id}:");
+    let start = if stream.starts_with(&prefix) {
+        prefix.len()
+    } else {
+        stream.find(&format!("\n{prefix}"))? + prefix.len() + 1
+    };
+    serde_json::Deserializer::from_str(&stream[start..])
+        .into_iter::<Value>()
+        .next()?
+        .ok()
+}
+
+fn step<'a>(value: &'a Value, segment: &str) -> Option<&'a Value> {
+    match value {
+        Value::Array(items) => {
+            let element_field = match segment {
+                "type" => Some(1),
+                "key" => Some(2),
+                "props" => Some(3),
+                _ => None,
+            };
+            match element_field {
+                Some(i) if items.first().and_then(Value::as_str) == Some("$") => items.get(i),
+                _ => items.get(segment.parse::<usize>().ok()?),
+            }
+        }
+        Value::Object(map) => map.get(segment),
+        _ => None,
+    }
+}
+
 /// Find the first balanced `[...]` array following the literal `"<key>":` in the stream.
 pub fn first_array_after<'a>(stream: &'a str, key: &str) -> Option<&'a str> {
     balanced_after(stream, key, b'[', b']')
@@ -271,6 +368,29 @@ fn balanced_after<'a>(stream: &'a str, key: &str, open: u8, close: u8) -> Option
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn resolves_element_paths_and_chained_references() {
+        let stream = "0:{}\n5:[\"$\",\"div\",null,{\"rows\":[{\"c\":{\"n\":\"A\"},\
+                      \"refs\":[\"$5:props:rows:0:c\",\"$7:x\"]}]}]\n7:{\"x\":\"$5:props:rows:0:c:n\"}\n";
+        let mut rows: Value = serde_json::from_str(
+            r#"["$5:props:rows:0:refs", "$undefined", "$9:missing", "$5:nope"]"#,
+        )
+        .unwrap();
+        resolve_references(&mut rows, stream);
+        assert_eq!(
+            rows,
+            serde_json::json!([[{"n": "A"}, "A"], "$undefined", "$9:missing", "$5:nope"])
+        );
+    }
+
+    #[test]
+    fn reference_cycles_stop() {
+        let stream = "1:{\"a\":\"$1:a\"}\n";
+        let mut value = Value::String("$1:a".into());
+        resolve_references(&mut value, stream);
+        assert_eq!(value, Value::String("$1:a".into()));
+    }
 
     #[test]
     fn decode_basic_escapes() {

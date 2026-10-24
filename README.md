@@ -132,7 +132,7 @@ llmpk:
 3. Decodes JS string escapes and concatenates into a single stream
 4. Parses AA model rows from `/leaderboards/models` by scanning for balanced JSON objects containing `contextWindowTokens`, one row per slug; the homepage carries only a curated subset with no prices
 5. Derives AA's blended prices and cache discount from the raw input, output, and cache-hit prices, and joins release dates through the page's `modelsAndReleases` table
-6. Parses AA Agents rows by scanning for the first balanced array after `rows`
+6. Parses AA Agents rows by scanning for the first balanced array after `rows`, then resolves the RSC path references in it (such as `"$32:props:children:props:rows:0:agentCreator"`) to the values they point at
 7. Reads the Slopalytics model table from the site's JavaScript bundle (found through the hashed `/assets/index-*.js` link) and converts its object literals to JSON
 8. Fetches FrontierCode, AI Tracker, and AIHOT data directly from their JSON endpoints; for FrontierCode it keeps the newest benchmark revision and each model's best-scoring effort, as the site does
 9. Preserves provider metadata where available so table and chart colors stay tied to the underlying model or agent creator
