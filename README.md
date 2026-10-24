@@ -1,7 +1,7 @@
 # llmpk
 
-[![CI](https://github.com/deng-shihao/llmpk/actions/workflows/ci.yml/badge.svg)](https://github.com/deng-shihao/llmpk/actions/workflows/ci.yml)
-[![Release](https://img.shields.io/github/v/release/deng-shihao/llmpk)](https://github.com/deng-shihao/llmpk/releases/latest)
+[![CI](https://github.com/dsh1376/llmpk/actions/workflows/ci.yml/badge.svg)](https://github.com/dsh1376/llmpk/actions/workflows/ci.yml)
+[![Release](https://img.shields.io/github/v/release/dsh1376/llmpk)](https://github.com/dsh1376/llmpk/releases/latest)
 
 A terminal TUI for browsing LLM and coding-agent leaderboards from one keyboard-driven interface.
 
@@ -50,7 +50,7 @@ i/s/p/d/c sort  o asc/desc  m chart  / filter
 ### Prebuilt binaries
 
 ```sh
-curl -fsSL https://github.com/deng-shihao/llmpk/releases/latest/download/install.sh | bash
+curl -fsSL https://github.com/dsh1376/llmpk/releases/latest/download/install.sh | bash
 ```
 
 Prebuilt for macOS Apple Silicon (`aarch64-apple-darwin`) and Linux x86_64 (`x86_64-unknown-linux-gnu`). Set `LLMPK_INSTALL_DIR` to override the destination directory.
@@ -58,7 +58,7 @@ Prebuilt for macOS Apple Silicon (`aarch64-apple-darwin`) and Linux x86_64 (`x86
 ### From source
 
 ```sh
-cargo install --git https://github.com/deng-shihao/llmpk.git
+cargo install --git https://github.com/dsh1376/llmpk.git
 ```
 
 Requires Rust 1.88+ (`rust-version` in `Cargo.toml`; CI checks the floor).

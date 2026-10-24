@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-repo="${LLMPK_REPO:-deng-shihao/llmpk}"
+repo="${LLMPK_REPO:-dsh1376/llmpk}"
 bin="${LLMPK_BIN:-llmpk}"
 version="${LLMPK_VERSION:-latest}"
 
