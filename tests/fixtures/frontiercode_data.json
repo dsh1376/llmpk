@@ -1,346 +1,372 @@
 {
- "v1": {
   "models": [
-   "Claude Fable 5"
+    "SWE-2",
+    "GPT-6 Astra",
+    "Muse Wonder 1.0",
+    "Obsidian 3",
+    "Claude Opus 5.5",
+    "SWE-1.7"
   ],
   "colors": {
-   "Claude Fable 5": "#d97757"
+    "SWE-2": "#3ABBDED9",
+    "GPT-6 Astra": "#10B552D9",
+    "Muse Wonder 1.0": "#2050CFD9",
+    "Obsidian 3": "#2050CFD9",
+    "Claude Opus 5.5": "#FF5833D9",
+    "SWE-1.7": "#3ABBDED9"
   },
   "lab_colors": {
-   "Anthropic": "#d97757"
+    "Anthropic": "#FF5833D9",
+    "OpenAI": "#10B552D9",
+    "xAI": "#786FE1D9",
+    "Cognition": "#3ABBDED9",
+    "Moonshot": "#459487D9",
+    "Cursor": "#D1A700D9",
+    "Zhipu": "#786FE1D9",
+    "DeepSeek": "#786FE1D9",
+    "MiniMax": "#2050CFD9",
+    "Thinking Machines": "#D1A700D9",
+    "Alibaba": "#D1A700D9",
+    "NVIDIA": "#10B552D9",
+    "Google": "#D1A700D9",
+    "Mistral": "#DB58C8D9"
   },
   "harness": {
-   "Claude Fable 5": "claude-code"
+    "SWE-2": "devin",
+    "GPT-6 Astra": "codex",
+    "Muse Wonder 1.0": "muse",
+    "Obsidian 3": "claude-code",
+    "Claude Opus 5.5": "claude-code",
+    "SWE-1.7": "chisel_swe1"
   },
   "efforts": {
-   "Claude Fable 5": [
-    "low",
-    "medium",
-    "high",
-    "xhigh",
-    "max"
-   ]
+    "SWE-2": [
+      "medium",
+      "high",
+      "max"
+    ],
+    "GPT-6 Astra": [
+      "low",
+      "medium",
+      "high",
+      "xhigh",
+      "max"
+    ],
+    "Muse Wonder 1.0": [
+      "low",
+      "medium",
+      "high",
+      "xhigh"
+    ],
+    "Obsidian 3": [
+      "low",
+      "medium",
+      "high",
+      "xhigh",
+      "max"
+    ],
+    "Claude Opus 5.5": [
+      "low",
+      "medium",
+      "high",
+      "xhigh",
+      "max"
+    ],
+    "SWE-1.7": [
+      "na"
+    ]
   },
   "subsets": {
-   "main": 100,
-   "extended": 150
+    "main": 132
   },
   "data": {
-   "Claude Fable 5": {
-    "high": {
-     "main": {
-      "correct": 0.462,
-      "new_score": 0.433,
-      "tokens": 34776.9,
-      "cost": 8.2,
-      "tool_calls": null,
-      "steps": null,
-      "ote": null
-     },
-     "extended": {
-      "correct": 0.633,
-      "new_score": 0.594,
-      "tokens": 29252.9,
-      "cost": 6.8,
-      "tool_calls": null,
-      "steps": null,
-      "ote": null
-     }
+    "SWE-2": {
+      "medium": {
+        "main": {
+          "correct": 0.176,
+          "new_score": 0.1556,
+          "tokens": 28705,
+          "cost": 0.442,
+          "duration_min": null,
+          "tool_calls": null,
+          "ote": null,
+          "flagged_rate": 0.0197
+        }
+      },
+      "high": {
+        "main": {
+          "correct": 0.2595,
+          "new_score": 0.2306,
+          "tokens": 68546,
+          "cost": 0.958,
+          "duration_min": null,
+          "tool_calls": null,
+          "ote": null,
+          "flagged_rate": 0.0288
+        }
+      },
+      "max": {
+        "main": {
+          "correct": 0.2667,
+          "new_score": 0.2378,
+          "tokens": 97584,
+          "cost": 1.261,
+          "duration_min": null,
+          "tool_calls": null,
+          "ote": null,
+          "flagged_rate": 0.0242
+        }
+      }
     },
-    "low": {
-     "main": {
-      "correct": 0.405,
-      "new_score": 0.376,
-      "tokens": 21262.2,
-      "cost": 4.6,
-      "tool_calls": null,
-      "steps": null,
-      "ote": null
-     },
-     "extended": {
-      "correct": 0.59,
-      "new_score": 0.547,
-      "tokens": 17747.4,
-      "cost": 3.8,
-      "tool_calls": null,
-      "steps": null,
-      "ote": null
-     }
+    "GPT-6 Astra": {
+      "low": {
+        "main": {
+          "correct": 0.3424,
+          "new_score": 0.3111,
+          "tokens": 8987,
+          "cost": 2.437,
+          "duration_min": null,
+          "tool_calls": null,
+          "ote": null,
+          "flagged_rate": 0.0076
+        }
+      },
+      "medium": {
+        "main": {
+          "correct": 0.4015,
+          "new_score": 0.3675,
+          "tokens": 14065,
+          "cost": 3.493,
+          "duration_min": null,
+          "tool_calls": null,
+          "ote": null,
+          "flagged_rate": 0.0167
+        }
+      },
+      "high": {
+        "main": {
+          "correct": 0.4136,
+          "new_score": 0.3831,
+          "tokens": 18433,
+          "cost": 4.277,
+          "duration_min": null,
+          "tool_calls": null,
+          "ote": null,
+          "flagged_rate": 0.0242
+        }
+      },
+      "xhigh": {
+        "main": {
+          "correct": 0.4485,
+          "new_score": 0.4141,
+          "tokens": 20869,
+          "cost": 4.539,
+          "duration_min": null,
+          "tool_calls": null,
+          "ote": null,
+          "flagged_rate": 0.0152
+        }
+      },
+      "max": {
+        "main": {
+          "correct": 0.4621,
+          "new_score": 0.4277,
+          "tokens": 36354,
+          "cost": 6.676,
+          "duration_min": null,
+          "tool_calls": null,
+          "ote": null,
+          "flagged_rate": 0.0227
+        }
+      }
     },
-    "max": {
-     "main": {
-      "correct": 0.477,
-      "new_score": 0.451,
-      "tokens": 65654.2,
-      "cost": 16,
-      "tool_calls": null,
-      "steps": null,
-      "ote": null
-     },
-     "extended": {
-      "correct": 0.638,
-      "new_score": 0.6,
-      "tokens": 56060.3,
-      "cost": 13.2,
-      "tool_calls": null,
-      "steps": null,
-      "ote": null
-     }
+    "Muse Wonder 1.0": {
+      "low": {
+        "main": {
+          "correct": 0.2413,
+          "new_score": 0.2121,
+          "tokens": 20301,
+          "cost": 1.843,
+          "duration_min": null,
+          "tool_calls": null,
+          "ote": null,
+          "flagged_rate": 0.0152
+        }
+      },
+      "medium": {
+        "main": {
+          "correct": 0.2606,
+          "new_score": 0.2314,
+          "tokens": 26714,
+          "cost": 2.534,
+          "duration_min": null,
+          "tool_calls": null,
+          "ote": null,
+          "flagged_rate": 0.0182
+        }
+      },
+      "high": {
+        "main": {
+          "correct": 0.2742,
+          "new_score": 0.2428,
+          "tokens": 32832,
+          "cost": 3.143,
+          "duration_min": null,
+          "tool_calls": null,
+          "ote": null,
+          "flagged_rate": 0.0167
+        }
+      },
+      "xhigh": {
+        "main": {
+          "correct": 0.2747,
+          "new_score": 0.2411,
+          "tokens": 38672,
+          "cost": 3.793,
+          "duration_min": null,
+          "tool_calls": null,
+          "ote": null,
+          "flagged_rate": 0.0197
+        }
+      }
     },
-    "medium": {
-     "main": {
-      "correct": 0.443,
-      "new_score": 0.415,
-      "tokens": 27155.5,
-      "cost": 6,
-      "tool_calls": null,
-      "steps": null,
-      "ote": null
-     },
-     "extended": {
-      "correct": 0.614,
-      "new_score": 0.574,
-      "tokens": 23104.1,
-      "cost": 5,
-      "tool_calls": null,
-      "steps": null,
-      "ote": null
-     }
+    "Obsidian 3": {
+      "low": {
+        "main": {
+          "correct": 0.4312,
+          "new_score": 0.3919,
+          "tokens": null,
+          "cost": 2.201,
+          "duration_min": null,
+          "tool_calls": null,
+          "ote": null,
+          "flagged_rate": 0.0153
+        }
+      },
+      "medium": {
+        "main": {
+          "correct": 0.4366,
+          "new_score": 0.3984,
+          "tokens": null,
+          "cost": 2.842,
+          "duration_min": null,
+          "tool_calls": null,
+          "ote": null,
+          "flagged_rate": 0.0153
+        }
+      },
+      "high": {
+        "main": {
+          "correct": 0.5138,
+          "new_score": 0.4677,
+          "tokens": null,
+          "cost": 8.616,
+          "duration_min": null,
+          "tool_calls": null,
+          "ote": null,
+          "flagged_rate": 0.0168
+        }
+      },
+      "xhigh": {
+        "main": {
+          "correct": 0.5038,
+          "new_score": 0.459,
+          "tokens": null,
+          "cost": 19.592,
+          "duration_min": null,
+          "tool_calls": null,
+          "ote": null,
+          "flagged_rate": 0.0214
+        }
+      },
+      "max": {
+        "main": {
+          "correct": 0.4992,
+          "new_score": 0.4553,
+          "tokens": null,
+          "cost": 47.436,
+          "duration_min": null,
+          "tool_calls": null,
+          "ote": null,
+          "flagged_rate": 0.0448
+        }
+      }
     },
-    "xhigh": {
-     "main": {
-      "correct": 0.493,
-      "new_score": 0.468,
-      "tokens": 45395.6,
-      "cost": 10.6,
-      "tool_calls": null,
-      "steps": null,
-      "ote": null
-     },
-     "extended": {
-      "correct": 0.653,
-      "new_score": 0.616,
-      "tokens": 38379.8,
-      "cost": 8.8,
-      "tool_calls": null,
-      "steps": null,
-      "ote": null
-     }
+    "Claude Opus 5.5": {
+      "low": {
+        "main": {
+          "correct": 0.1636,
+          "new_score": 0.1472,
+          "tokens": 14230,
+          "cost": 0.746,
+          "duration_min": null,
+          "tool_calls": null,
+          "ote": null,
+          "flagged_rate": 0.0121
+        }
+      },
+      "medium": {
+        "main": {
+          "correct": 0.3303,
+          "new_score": 0.301,
+          "tokens": 30068,
+          "cost": 1.699,
+          "duration_min": null,
+          "tool_calls": null,
+          "ote": null,
+          "flagged_rate": 0.0152
+        }
+      },
+      "high": {
+        "main": {
+          "correct": 0.3788,
+          "new_score": 0.3453,
+          "tokens": 41233,
+          "cost": 2.423,
+          "duration_min": null,
+          "tool_calls": null,
+          "ote": null,
+          "flagged_rate": 0.0152
+        }
+      },
+      "xhigh": {
+        "main": {
+          "correct": 0.4727,
+          "new_score": 0.4338,
+          "tokens": 88053,
+          "cost": 5.184,
+          "duration_min": null,
+          "tool_calls": null,
+          "ote": null,
+          "flagged_rate": 0.0212
+        }
+      },
+      "max": {
+        "main": {
+          "correct": 0.497,
+          "new_score": 0.4545,
+          "tokens": 201919,
+          "cost": 12.821,
+          "duration_min": null,
+          "tool_calls": null,
+          "ote": null,
+          "flagged_rate": 0.0288
+        }
+      }
+    },
+    "SWE-1.7": {
+      "na": {
+        "main": {
+          "correct": 0.189,
+          "new_score": 0.1615,
+          "tokens": 89251,
+          "cost": 3.5209,
+          "duration_min": null,
+          "tool_calls": null,
+          "ote": null,
+          "flagged_rate": 0.0076
+        }
+      }
     }
-   }
   }
- },
- "v1_1": {
-  "models": [
-   "Claude Opus 5.5",
-   "Kimi K3",
-   "Inkling"
-  ],
-  "colors": {
-   "Claude Opus 5.5": "#d97757",
-   "Kimi K3": "#7c3aed",
-   "Inkling": "#e3a857"
-  },
-  "lab_colors": {
-   "Anthropic": "#d97757",
-   "Moonshot": "#7c3aed",
-   "Thinking Machines": "#e3a857"
-  },
-  "harness": {
-   "Claude Opus 5.5": "claude-code",
-   "Kimi K3": "mini-swe-agent",
-   "Inkling": "mini-swe-agent"
-  },
-  "efforts": {
-   "Claude Opus 5.5": [
-    "low",
-    "medium",
-    "high",
-    "xhigh",
-    "max"
-   ],
-   "Kimi K3": [
-    "none"
-   ],
-   "Inkling": [
-    "0.99"
-   ]
-  },
-  "subsets": {
-   "main": 100,
-   "extended": 150
-  },
-  "data": {
-   "Claude Opus 5.5": {
-    "low": {
-     "main": {
-      "correct": 0.5175,
-      "new_score": 0.473,
-      "tokens": 9061,
-      "cost": 0.4036,
-      "duration_min": 4.87,
-      "tool_calls": 16.4,
-      "steps": 34.3,
-      "ote": null,
-      "flagged_rate": 0
-     },
-     "extended": {
-      "correct": 0.6583,
-      "new_score": 0.6033,
-      "tokens": 7619,
-      "cost": 0.3464,
-      "duration_min": 4.65,
-      "tool_calls": 14.6,
-      "steps": 30.1,
-      "ote": null,
-      "flagged_rate": 0.0067
-     }
-    },
-    "medium": {
-     "main": {
-      "correct": 0.596,
-      "new_score": 0.5464,
-      "tokens": 18519,
-      "cost": 0.8016,
-      "duration_min": 6.34,
-      "tool_calls": 35.1,
-      "steps": 64,
-      "ote": null,
-      "flagged_rate": 0
-     },
-     "extended": {
-      "correct": 0.708,
-      "new_score": 0.6527,
-      "tokens": 15169,
-      "cost": 0.6666,
-      "duration_min": 5.58,
-      "tool_calls": 30,
-      "steps": 55.4,
-      "ote": null,
-      "flagged_rate": 0.004
-     }
-    },
-    "high": {
-     "main": {
-      "correct": 0.589,
-      "new_score": 0.5399,
-      "tokens": 26143,
-      "cost": 1.0896,
-      "duration_min": 7.2,
-      "tool_calls": 43.1,
-      "steps": 74.6,
-      "ote": null,
-      "flagged_rate": 0
-     },
-     "extended": {
-      "correct": 0.7073,
-      "new_score": 0.652,
-      "tokens": 21371,
-      "cost": 0.903,
-      "duration_min": 6.26,
-      "tool_calls": 37.2,
-      "steps": 65.4,
-      "ote": null,
-      "flagged_rate": 0
-     }
-    },
-    "xhigh": {
-     "main": {
-      "correct": 0.568,
-      "new_score": 0.5142,
-      "tokens": 60182,
-      "cost": 2.2545,
-      "duration_min": 11.21,
-      "tool_calls": 61.9,
-      "steps": 97.9,
-      "ote": null,
-      "flagged_rate": 0
-     },
-     "extended": {
-      "correct": 0.692,
-      "new_score": 0.6353,
-      "tokens": 49417,
-      "cost": 1.8587,
-      "duration_min": 9.53,
-      "tool_calls": 53.4,
-      "steps": 85.8,
-      "ote": null,
-      "flagged_rate": 0
-     }
-    },
-    "max": {
-     "main": {
-      "correct": 0.6,
-      "new_score": 0.5443,
-      "tokens": 165811,
-      "cost": 6.191,
-      "duration_min": 25.01,
-      "tool_calls": 99.4,
-      "steps": 150.4,
-      "ote": null,
-      "flagged_rate": 0.008
-     },
-     "extended": {
-      "correct": 0.6947,
-      "new_score": 0.6358,
-      "tokens": 143626,
-      "cost": 5.2832,
-      "duration_min": 21.75,
-      "tool_calls": 87.4,
-      "steps": 133.6,
-      "ote": null,
-      "flagged_rate": 0.0053
-     }
-    }
-   },
-   "Kimi K3": {
-    "none": {
-     "extended": {
-      "correct": 0.6358,
-      "new_score": 0.5819,
-      "tokens": 45646.3,
-      "cost": 3.1235,
-      "tool_calls": null,
-      "steps": null,
-      "ote": null,
-      "flagged_rate": 0.0014
-     },
-     "main": {
-      "correct": 0.4891,
-      "new_score": 0.4417,
-      "tokens": 53607.2,
-      "cost": 3.8167,
-      "tool_calls": null,
-      "steps": null,
-      "ote": null,
-      "flagged_rate": 0.0021
-     }
-    }
-   },
-   "Inkling": {
-    "0.99": {
-     "main": {
-      "correct": 0.159,
-      "new_score": 0.14,
-      "tokens": 33610.8,
-      "cost": 3.6,
-      "tool_calls": null,
-      "steps": null,
-      "ote": null,
-      "flagged_rate": 0.076
-     },
-     "extended": {
-      "correct": 0.278,
-      "new_score": 0.248,
-      "tokens": 30149.8,
-      "cost": 3.2,
-      "tool_calls": null,
-      "steps": null,
-      "ote": null,
-      "flagged_rate": 0.0727
-     }
-    }
-   }
-  }
- }
 }

@@ -52,10 +52,10 @@ target_triple() {
       printf '%s-%s' "$arch" "$os"
       ;;
     x86_64-apple-darwin)
-      fail "macOS Intel release binaries are not published yet; install from source with cargo install --git https://github.com/${repo}.git"
+      fail "macOS Intel release binaries are not published yet; clone https://github.com/${repo}.git, then run bun install --frozen-lockfile and bun run build (Bun 1.4+)"
       ;;
     aarch64-unknown-linux-gnu)
-      fail "Linux arm64 release binaries are not published yet; install from source with cargo install --git https://github.com/${repo}.git"
+      fail "Linux arm64 release binaries are not published yet; clone https://github.com/${repo}.git, then run bun install --frozen-lockfile and bun run build (Bun 1.4+)"
       ;;
     *)
       fail "unsupported platform: ${arch}-${os}"

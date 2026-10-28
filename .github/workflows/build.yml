@@ -1,0 +1,95 @@
+name: Verify and build
+
+on:
+  workflow_call:
+    inputs:
+      revision:
+        description: Exact source commit to verify and build
+        required: true
+        type: string
+      release-tag:
+        description: Optional tag whose version must match the source manifest
+        default: ""
+        type: string
+
+permissions:
+  contents: read
+
+defaults:
+  run:
+    shell: bash
+
+jobs:
+  build:
+    name: ${{ matrix.target }}
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-24.04
+            target: x86_64-unknown-linux-gnu
+            bun-target: bun-linux-x64
+          - os: macos-15
+            target: aarch64-apple-darwin
+            bun-target: bun-darwin-arm64
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ inputs.revision }}
+          persist-credentials: false
+
+      - uses: oven-sh/setup-bun@v2
+        id: bun
+        with:
+          bun-version-file: .bun-version
+
+      - name: Check release version
+        if: inputs.release-tag != ''
+        env:
+          RELEASE_TAG: ${{ inputs.release-tag }}
+        run: bun run scripts/release.ts version "$RELEASE_TAG"
+
+      - name: Cache package downloads
+        uses: actions/cache@v6
+        with:
+          path: ~/.bun/install/cache
+          key: bun-${{ runner.os }}-${{ runner.arch }}-${{ steps.bun.outputs.bun-version }}-${{ hashFiles('bun.lock') }}
+          restore-keys: |
+            bun-${{ runner.os }}-${{ runner.arch }}-${{ steps.bun.outputs.bun-version }}-
+
+      - run: bun install --frozen-lockfile
+
+      - name: Typecheck and lint
+        if: runner.os == 'Linux'
+        run: |
+          bun run typecheck
+          bun run lint
+          bash -n install.sh
+
+      - name: Offline tests
+        run: env -u LLMPK_LIVE bun run test
+
+      - name: Build native executable
+        env:
+          BUILD_TARGET: ${{ matrix.bun-target }}
+        run: bun run build --target "$BUILD_TARGET"
+
+      - name: Standalone smoke tests
+        run: bun run smoke
+
+      - name: Package executable
+        env:
+          PACKAGE_TARGET: ${{ matrix.target }}
+        run: bun run package --target "$PACKAGE_TARGET"
+
+      - uses: actions/upload-artifact@v7
+        with:
+          name: llmpk-${{ matrix.target }}
+          path: |
+            dist/*.tar.gz
+            dist/*.tar.gz.sha256
+          if-no-files-found: error
+          compression-level: 0
+          retention-days: 7

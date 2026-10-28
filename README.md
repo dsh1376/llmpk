@@ -3,210 +3,222 @@
 [![CI](https://github.com/dsh1376/llmpk/actions/workflows/ci.yml/badge.svg)](https://github.com/dsh1376/llmpk/actions/workflows/ci.yml)
 [![Release](https://img.shields.io/github/v/release/dsh1376/llmpk)](https://github.com/dsh1376/llmpk/releases/latest)
 
-A terminal TUI for browsing LLM and coding-agent leaderboards from one keyboard-driven interface.
+Browse LLM leaderboards and AI news in your terminal. Written in TypeScript with Bun, React and Ink. Ink provides Yoga for terminal flexbox layout.
 
-> **Note:** This is a personal vibe coding project using [Claude Code](https://docs.anthropic.com/en/docs/claude-code). Built for my own use to quickly compare LLM models and coding agents without opening a browser. Expect rough edges.
+> **Note:** This is a personal vibe coding project using [Claude Code](https://docs.anthropic.com/en/docs/claude-code). Built for my own use to quickly compare LLM models without opening a browser. Expect rough edges.
 
-No API keys. No headless browser. No JavaScript runtime. Just HTTP and regex.
-
-```
-┌ llmpk v0.6.2 ────────────────────────────────────────────────────────────────────────────────────┐
-│ 1 AA   2 AA Agents   3 Slopalytics   4 FrontierCode   5 AI Tracker                               │
-│artificialanalysis.ai/leaderboards/models  |  272 models  |  view: table  |  sort: Intelligence ↓ │
-└──────────────────────────────────────────────────────────────────────────────────────────────────┘
-┌ AA (272) ────────────────────────────────────────────────────────────────────────────────────────┐
-│  #   Model                                 Provider    Intel  t/s    $/M     Cache  Ctx     Open │
-│>  1  Claude Opus 5.5 (Max, Default Fallbac Anthropic   57.6   96     $2.94   95%    1M           │
-│   2  Claude Sonnet 5.5 (Max, Default Fallb Anthropic   56.0   133    $1.47   95%    1M           │
-│   3  Claude Opus 5.5 (Xhigh, Default Fallb Anthropic   56.0   84     $2.94   95%    1M           │
-│   4  Muse Wonder Full (Max)                Meta        55.8   -      -       -      1M           │
-│   5  Claude Opus 5.5 (High, Default Fallba Anthropic   53.6   78     $2.94   95%    1M           │
-│   6  Claude Fable 5.1 (Max, Default Fallba Anthropic   53.4   68     $7.17   98%    1M           │
-└──────────────────────────────────────────────────────────────────────────────────────────────────┘
-? / h help  q quit  [ ] board  j/k row  g/G top/bot  r reload  y copy  1/272
-i/s/p/d/c sort  o asc/desc  m chart  / filter
-```
+No API keys or headless browser. All seven sources load concurrently over HTTP.
 
 ## Features
 
-- **8 boards** — Artificial Analysis model rankings, Artificial Analysis coding-agent rankings, Slopalytics cost and time per task by reasoning effort, the FrontierCode mergeability benchmark, the AI Tracker feed of new model releases and leaks, and three AIHOT boards: the hot-events list, the latest daily report, and a calendar of Codex usage resets
-- **Background fetching** — every board starts loading on its own thread at launch; `r` refetches the current board without blocking the UI, and quitting never waits on a slow source
-- **AA price economics** — input / output / cache-hit / cache-write prices from AA, plus the 7:2:1 cache-hit:input:output blend, the no-cache 3:1 blend, and the cache discount derived from them; prices carry banded color and sub-cent values render as `<$0.01/M` instead of rounding to `$0.00`
-- **Release and leak feed** — the AI Tracker board lists each tracked model with its maker, stage (release in green, leak in yellow), age since last sighting, and a link to its evidence page
-- **AIHOT news and Codex resets** — the AIHOT Hot and Daily boards show AIHOT's Chinese titles and summaries with source counts and links; the Codex Resets board opens on a month calendar of every usage reset (`●`) and reset credit (`◆`) that Tibo announced on X, colored by status (confirmed in green, likely landed in yellow, announced in magenta), with 90-day counts, the median gap between resets, and the selected event's scope, expected time in UTC, and English post text; `j`/`k` move between events and `m` switches to the table. The full history is cached for 10 minutes in `~/.cache/llmpk/` (or `$XDG_CACHE_HOME/llmpk/`), because the API allows one full read per 10 minutes
-- **Table and full-width horizontal chart views** — toggle with `m` (the AI Tracker, AIHOT Hot, and AIHOT Daily boards are table-only)
-- **Provider-aware colors** — AA provider colors and agent creator/provider accents carry into tables and charts
-- **Per-board filtering** — type `/` to filter; filters are cached and scoped to the active board
-- **Responsive layout** — columns appear as the terminal widens (provider from 62 columns, cache from 70, context from 74, speed from 84, license from 98, release date from 110); the selected row gets a side detail pane once the terminal is wide enough for that board
-- **Metric sorting** — missing values stay last; cost-like metrics default to ascending when selected
-- **Compact mode** — `z` removes column spacing for narrow terminals
-- **Mouse support** — click a tab to switch boards, a column header to sort by it (click again to flip the direction), or a row to select it; the wheel scrolls the table
-- **Scrollbars** — long tables and the help overlay show a scrollbar on their right border; click or drag it to jump through the table
-- **Row position indicator** — table view footer shows selected row / visible row count
-- **OSC 52 copy** — press `y` to copy the selected model or agent label, news title, or reset post URL through terminal clipboard support
+- Seven boards with separate filters, sort order, selection and view state.
+- Adaptive tables, provider colors, small-square meter charts and a UTC reset calendar with a 90-day summary. The active sort metric stays visible as columns narrow; wide tables add an inline meter beside it. Tracker stages, daily sections and reset statuses have colored text columns.
+- Selected-row details beside the table at 116 columns and 16 rows, in metric, detail, summary and link sections with the row's rank. `Enter` opens scrollable full details at any supported size, including summaries, omitted metrics and source URLs.
+- Search matches every word across row names, providers and details. Sorting keeps missing values last and preserves the selected row. Charts scroll with the selection.
+- Reloads retain existing rows while fetching. Per-board errors stay visible; quitting aborts outstanding requests.
+- Mouse tabs, sortable headers, row selection, wheel scrolling and scrollbar click/drag. `--no-mouse` keeps normal terminal text selection.
+- OSC 52 clipboard support, scrollable help, compact columns and terminal resize handling down to 36 columns by 8 rows.
+- Offline fixture previews and single-frame snapshots for inspection without an interactive terminal.
 
 ## Installation
 
+### From source
+
+Requires [Bun 1.4.0 or later](https://bun.sh/docs/installation).
+
+```sh
+git clone https://github.com/dsh1376/llmpk.git
+cd llmpk
+bun install --frozen-lockfile
+bun run start
+```
+
+Build a standalone executable, which includes Bun and Yoga:
+
+```sh
+bun run build
+./dist/llmpk
+```
+
+On macOS, the build script applies an ad hoc signature to the generated executable. No certificate or keychain access is required.
+
 ### Prebuilt binaries
+
+For a published release:
 
 ```sh
 curl -fsSL https://github.com/dsh1376/llmpk/releases/latest/download/install.sh | bash
 ```
 
-Prebuilt for macOS Apple Silicon (`aarch64-apple-darwin`) and Linux x86_64 (`x86_64-unknown-linux-gnu`). Set `LLMPK_INSTALL_DIR` to override the destination directory.
-
-### From source
-
-```sh
-cargo install --git https://github.com/dsh1376/llmpk.git
-```
-
-Requires Rust 1.88+ (`rust-version` in `Cargo.toml`; CI checks the floor).
+The release workflow builds macOS Apple Silicon (`aarch64-apple-darwin`) and Linux x86_64 (`x86_64-unknown-linux-gnu`) archives. Set `LLMPK_INSTALL_DIR` to choose the install directory, or `LLMPK_VERSION` to select a release tag. Existing published releases can still contain an earlier implementation; use a source checkout to run this TypeScript rewrite before its release.
 
 ## Usage
+
+```sh
+bun run start --board frontier
+bun run start --no-mouse
+
+# Offline preview using the committed, trimmed source captures
+bun run start --demo
+
+# Print one frame and exit; no network or cache writes with --demo
+bun run start --demo --snapshot --board resets --width 80 --height 24
+
+# Fetch and print only the selected board
+bun run start --snapshot --board aa
+```
+
+The standalone executable accepts the same options. `--help` lists CLI options; `?` opens help inside the TUI. Dates and times use UTC. A dash means the source did not provide a value.
 
 ### Navigation
 
 | Key | Action |
 |-----|--------|
-| `q`, `Esc`, `Ctrl-C` | Quit |
-| `[` / `]` | Previous / next board |
-| `1` - `8` | Jump to AA / AA Agents / Slopalytics / FrontierCode / AI Tracker / AIHOT Hot / AIHOT Daily / Codex Resets |
-| `r` | Reload current board |
-| `y` | Copy selected row label to clipboard (OSC 52) |
-| `↑` / `↓` (or `k` / `j`) | Move selected row |
-| `PgUp` / `PgDn` | Move by 10 rows |
-| `Home` / `End` (or `g` / `G`) | Jump to first / last row |
-| `?` or `h` | Toggle in-app help (lists every keybinding and explains each metric; scroll it with `j`/`k`, `PgUp`/`PgDn`, or the mouse wheel) |
-| Mouse click | Tab: switch board. Column header: sort by it. Row: select it. Scrollbar: jump there (drag to scrub) |
-| Mouse scroll | Scroll the table |
+| `q`, `Ctrl-C` | Quit |
+| `Esc` | Close details/help or finish search; otherwise quit |
+| `[` / `]`, `Shift-Tab` / `Tab` | Previous / next board |
+| `1` through `7` | Select a board in the order below |
+| `j` / `k`, `↓` / `↑` | Select a row; scroll when details/help is open |
+| `PgUp` / `PgDn` | Move 10 rows or scroll 10 lines |
+| `g` / `G`, `Home` / `End` | First / last row, or start / end of an open panel |
+| `Enter` | Open full details; press again to close |
+| `r` | Reload the current board |
+| `?`, `h` | Toggle help |
+| `y` | Copy the selected label; on Resets, copy the post URL |
+| `Y` | Copy the selected row's source URL |
+| Mouse | Click tabs, headers and rows; wheel to scroll; click or drag scrollbars |
 
 ### Sorting
 
-| Key | AA | AA Agents | Slopalytics | FrontierCode | AI Tracker | AIHOT Hot | AIHOT Daily | Codex Resets |
-|-----|----|-----------|-------------|--------------|------------|-----------|-------------|--------------|
-| `i` | Intelligence | Index | Intelligence | Score | — | Rank | Report order | — |
-| `a` | — | Pass@1 | — | Pass rate | — | — | — | — |
-| `s` | Speed | Turns | Speed | — | — | — | — | — |
-| `p` | Price | Cost | Cost per task | Cost per run | — | — | — | — |
-| `t` | — | Time | Time per task | Time per run | Last seen | — | — | Announced |
-| `u` | — | Tokens | Tokens per task | Tokens per run | — | — | — | — |
-| `c` | Context | — | — | — | — | — | — | — |
-| `d` | Cache discount | — | — | — | — | — | — | — |
-| `o` | Toggle sort direction | Toggle sort direction | Toggle sort direction | Toggle sort direction | Toggle sort direction | Toggle sort direction | Toggle sort direction | Toggle sort direction |
+Press a metric key to sort. Press it again to reverse. Cost, time, tokens and flag rate start ascending; quality, speed, context and cache discount start descending. `o` reverses the current sort. Clicking a numeric column header also sorts it, including columns without a shortcut.
 
-Clicking a column header does the same as pressing its key.
+| Key | AA | FrontierCode | Slopalytics | AI Tracker | AIHOT Hot | AIHOT Daily | Codex Resets |
+|-----|----|--------------|-------------|------------|-----------|-------------|--------------|
+| `i` | Intelligence | Score | Intelligence | - | Rank | Report order | - |
+| `a` | - | Pass rate | - | - | - | - | - |
+| `s` | Speed | - | Speed | - | - | - | - |
+| `p` | Price | Cost / rollout | Cost/task | - | - | - | - |
+| `t` | - | - | Time/task | Last seen | - | - | Announced |
+| `u` | - | Output tokens | Tokens/task | - | - | - | - |
+| `c` | Context | - | - | - | - | - | - |
+| `d` | Cache discount | - | - | - | - | - | - |
+| `f` | - | Flag rate | - | - | - | - | - |
 
 ### View and filter
 
 | Key | Action |
 |-----|--------|
-| `m` | Toggle table / chart view (boards 1-4), or calendar / table on Codex Resets |
-| `z` | Toggle compact mode (tighter column spacing) |
-| `/` | Edit filter for current board |
-| `Backspace` | Delete filter character |
-| `Enter` / `Esc` | Finish editing filter |
-| `Ctrl-U` | Clear filter |
+| `m` | Table / chart on boards 1-3; calendar / table on Resets |
+| `z` | Toggle compact column spacing |
+| `/` | Edit the active board's filter |
+| `Backspace` | Delete a filter character |
+| `Enter`, `Esc` | Finish editing and keep the filter |
+| `Ctrl-U` | Clear the filter while editing |
+
+Tracker, Hot and Daily use tables. On narrow terminals, inactive tabs shorten to their numbers so all seven stay visible. The tab bar shows source health, and the board title line shows status, row count, sort and view. Full details remain available with `Enter` when the side pane is hidden.
 
 ## Data sources
 
-| Board | Source | Metrics |
-|-------|--------|---------|
-| AA | [artificialanalysis.ai/leaderboards/models](https://artificialanalysis.ai/leaderboards/models) | Intelligence index, output speed (t/s), input / output / cache hit / cache write prices, context window, release date; derived blended price ($/M tokens at 7:2:1 cache-hit:input:output, plus the no-cache 3:1 blend) and cache discount (%) |
-| AA Agents | [artificialanalysis.ai/agents/coding-agents](https://artificialanalysis.ai/agents/coding-agents) | Coding Agent Index, Pass@1, mean cost, mean execution time, mean tokens, mean turns |
-| Slopalytics | [slopalytics.com](https://slopalytics.com/) | One row per model and reasoning effort: AA intelligence index (`~` marks AA estimates), cost, time, and output tokens per index task, speed, full index-run cost and tokens, prices, context |
-| FrontierCode | [cognition.com/frontiercode](https://cognition.com/frontiercode) | Mergeability score, pass rate, flag rate, cost, output tokens, and time per run at each model's best effort, plus the score at every evaluated effort |
-| AI Tracker | [live.aitracker.bot](https://live.aitracker.bot/) ([JSON API](https://live.aitracker.bot/developers)) | Tracked new models: maker, stage (release / leak), last-seen time, evidence post and event counts, page link |
-| AIHOT Hot | [aihot.news/hot](https://aihot.news/hot) ([JSON API](https://aihot.news/api/v1/hot-topics)) | Top 10 AI events of the last 48 hours: rank, title, source / signal / participant counts, latest report time, sample of covering sources, links |
-| AIHOT Daily | [aihot.news/daily](https://aihot.news/daily) ([JSON API](https://aihot.news/api/v1/dailies/latest)) | Latest daily report: section, title, summary, source, links; flashes with their publish time |
-| Codex Resets | [aihot.news/codex-reset](https://aihot.news/codex-reset) ([JSON API](https://aihot.news/api/v1/codex-resets)) | Full history of Codex usage resets and reset credits, as a calendar: status, scope, announced / expected / confirmed time (UTC), English X posts |
+| # | Board | Source | Data |
+|---|-------|--------|------|
+| 1 | AA | [Artificial Analysis models](https://artificialanalysis.ai/leaderboards/models) | Intelligence, speed, input/output/cache prices, context, release date and weights |
+| 2 | FrontierCode | [cognition.com/frontiercode](https://cognition.com/frontiercode) | FrontierCode 2.0 leaderboard columns (harness, score, pass rate, flag rate, cost per rollout, output tokens) at the best reasoning mode, plus every evaluated effort |
+| 3 | Slopalytics | [slopalytics.com](https://slopalytics.com/) | Intelligence and cost/time/output tokens per task, reasoning effort, full-run totals, token prices and context |
+| 4 | AI Tracker | [live.aitracker.bot](https://live.aitracker.bot/) ([API](https://live.aitracker.bot/developers)) | Releases and leaks, maker, last sighting, evidence counts and page URL |
+| 5 | AIHOT Hot | [aihot.news/hot](https://aihot.news/hot) ([API](https://aihot.news/api/v1/hot-topics)) | Top 10 events by rank, Chinese titles, source/signal/participant counts and links |
+| 6 | AIHOT Daily | [aihot.news/daily](https://aihot.news/daily) ([API](https://aihot.news/api/v1/dailies/latest)) | Sections in report order, then flashes; Chinese titles, summaries, sources and links |
+| 7 | Codex Resets | [aihot.news/codex-reset](https://aihot.news/codex-reset) ([API](https://aihot.news/api/v1/codex-resets)) | Usage resets and credits, presentation status, scope, UTC times and English X posts |
+
+AA's cached price is `(7 × cache hit + 2 × input + output) / 10`, in USD per million tokens. The uncached blend is `(3 × input + output) / 4`; cache discount is `1 - cache hit / input`. Missing component prices leave the result unavailable. Positive prices below one cent display as `<$0.01`.
+
+Codex Resets opens on a calendar. `●` marks a reset, `◆` a credit, and `+` multiple events that day. Green means confirmed, yellow likely completed, and magenta announced. Calendar days use `confirmedAt`, otherwise `createdAt`, in UTC. Counts and median reset gaps use effective timestamps in the past 90 days. AIHOT's own calendar uses Beijing time, so a day can differ.
+
+The reset API allows one full-history read per 10 minutes. Successful parsed responses are cached at `$XDG_CACHE_HOME/llmpk/codex-resets.json`, otherwise `~/.cache/llmpk/codex-resets.json`. Reload also respects this cache. On HTTP 429, llmpk saves the server's `Retry-After` deadline in `codex-resets-cooldown.json` and shows existing history with a rate-limit warning. Without valid full history, it reads the official [recent-events API](https://aihot.news/api/v1/codex-resets/recent), caches it separately in `codex-resets-recent.json`, and labels the calendar incomplete. Partial history does not show 90-day counts or gap statistics. Parse failures and other HTTP errors remain errors. Fixture previews never write the cache.
 
 ## How it works
 
-Artificial Analysis is a Next.js application. It embeds leaderboard data in the HTML stream via React Server Components (`self.__next_f.push([1, "..."])` calls).
+`src/data/client.ts` fetches all boards asynchronously with Bun's native `fetch`. Each request has a 20-second timeout. Network faults and 5xx responses get up to two retries, after one and two seconds. Parse errors and 4xx responses are reported without retrying.
 
-llmpk:
+The AA page embeds React Server Component chunks in `self.__next_f.push` calls. The parser joins those chunks, scans balanced JSON values, and joins model release dates. Slopalytics supplies a hashed JavaScript bundle; llmpk parses only its restricted model-data literal syntax and never executes the downloaded bundle. Other sources use JSON.
 
-1. Fetches each page with a shared `reqwest` client (connection pooling, TLS session reuse)
-2. Extracts all RSC push chunks with a regex
-3. Decodes JS string escapes and concatenates into a single stream
-4. Parses AA model rows from `/leaderboards/models` by scanning for balanced JSON objects containing `contextWindowTokens`, one row per slug; the homepage carries only a curated subset with no prices
-5. Derives AA's blended prices and cache discount from the raw input, output, and cache-hit prices, and joins release dates through the page's `modelsAndReleases` table
-6. Parses AA Agents rows by scanning for the first balanced array after `rows`, then resolves the RSC path references in it (such as `"$32:props:children:props:rows:0:agentCreator"`) to the values they point at
-7. Reads the Slopalytics model table from the site's JavaScript bundle (found through the hashed `/assets/index-*.js` link) and converts its object literals to JSON
-8. Fetches FrontierCode, AI Tracker, and AIHOT data directly from their JSON endpoints; for FrontierCode it keeps the newest benchmark revision and each model's best-scoring effort, as the site does
-9. Preserves provider metadata where available so table and chart colors stay tied to the underlying model or agent creator
-
-This is inherently fragile: if a site changes its markup, the scraper breaks. That is deliberate — breakage shows up as an error banner on the board instead of being papered over. Retries cover transient network faults only (timeout, reset, 5xx), never parsing.
+React manages view state; Ink renders terminal components and Yoga handles layout. Only the visible table/chart rows render. Reloads keep the selected row by ID. Source-shape errors appear on the affected board.
 
 ## Building
 
 ```sh
-cargo build --release
+bun run build
+./dist/llmpk --version
+bun run smoke
+
+# Release targets, built on their matching operating system
+bun run build --target bun-darwin-arm64
+bun run build --target bun-linux-x64
+
+# Package the native executable, using the matching release target
+bun run package --target aarch64-apple-darwin
 ```
 
-The release profile uses thin LTO, single codegen unit, and symbol stripping for a small, fast binary.
+### CI and releases
 
-Run from source with:
+CI runs on pull requests, pushes to `main`, and manual dispatch. CI and Release
+share `.github/workflows/build.yml`, pinned to Ubuntu 24.04 and macOS 15. Bun is
+pinned in `.bun-version`. Each platform restores the package download cache and
+runs a frozen install, offline tests, a native build, 24 standalone fixture
+snapshots outside the checkout, and archive packaging. Linux also runs TypeScript,
+Biome and installer syntax checks. Build archives and SHA256 files remain in
+Actions artifacts for seven days.
+
+A `v*` tag push starts Release. Manual dispatch requires an existing tag. The
+preparation job reads `package.json` from that tag and requires its version to
+match. Builds and the installer use the resolved commit SHA. Before publication,
+the workflow reads the remote tag through GitHub's API, checks that it still
+points to that SHA, and verifies the exact
+five-file asset inventory, checksums and archive contents. Stable versions and
+prereleases are identified from the manifest version. Existing releases are never
+overwritten; use a new version and tag for a new release.
+
+To verify the complete downloaded release bundle locally, including `install.sh`:
 
 ```sh
-cargo run --release
+bun run package:verify --directory path/to/downloaded-assets
 ```
 
 ### Testing
 
-`cargo test` covers the parsers against the trimmed captures in `tests/fixtures/` — no network, no environment variables:
-
 ```sh
-cargo fmt --all --check
-cargo clippy --locked --all-targets -- -D warnings
-cargo test --locked
+bun run check       # TypeScript, Biome and offline tests
+bun run typecheck
+bun run lint
+bun run test
+bun run format      # Format TypeScript and project JSON
+
+# Explicit live network checks, using temporary isolated caches
+LLMPK_LIVE=1 bun test tests/ts/live.test.ts
 ```
 
-Tests gated behind environment variables run against a **full** captured page. Point them at one saved from the live site; the committed fixtures are trimmed to a handful of rows and intentionally do not satisfy their row-count assertions.
-
-```sh
-# Fixture-based tests (expect a complete page, not the trimmed fixture)
-LLMPK_LEADERBOARD_FIXTURE=path/to/leaderboards-models.html cargo test
-LLMPK_CODING_AGENTS_FIXTURE=path/to/coding-agents.html cargo test
-
-# Live network tests
-LLMPK_LIVE=1 cargo test live_fetch
-
-# Benchmarks
-LLMPK_BENCH=1 cargo test bench_fetch -- --nocapture
-LLMPK_LEADERBOARD_FIXTURE=path/to/leaderboards-models.html LLMPK_BENCH=1 cargo test bench_regex -- --nocapture
-```
+Offline tests cover committed fixtures, malformed input, RSC references, prices, timestamps, filtering, sorting, cache expiry, rate-limit cooldowns, rendered layouts, release source validation and release archives. Live tests are skipped unless `LLMPK_LIVE` is set; the reset check uses the recent-events API so it does not consume the full-history quota. CI explicitly disables live tests. `bun run dev` watches source changes.
 
 ## Project structure
 
-```
-src/
-  main.rs           Entry point, terminal setup/teardown, event loop, fetch dispatch
-  rsc.rs            HTTP client, RSC stream extraction, brace/bracket scanners
-  aa.rs             artificialanalysis.ai parser
-  coding_agents.rs  artificialanalysis.ai coding agents parser
-  slopalytics.rs    slopalytics.com parser (JS bundle object literals to JSON)
-  frontiercode.rs   cognition.com FrontierCode parser (JSON, best effort per model)
-  aitracker.rs      live.aitracker.bot model-pages parser (JSON API, UTC timestamps)
-  aihot.rs          aihot.news hot topics, daily report, and Codex reset parsers (JSON API)
-  board.rs          Board enum, Data/Status wrappers, fetch dispatch
-  ui.rs             AppState, sort/filter state, render dispatch, shared helpers
-  ui/aa_board.rs    AA table/detail/chart rendering
-  ui/agents.rs      Agents table/chart rendering, brand colors
-  ui/slop_board.rs     Slopalytics table/detail/chart rendering, lab colors
-  ui/frontier_board.rs FrontierCode table/detail/chart rendering, per-effort scores
-  ui/tracker_board.rs  AI Tracker table/detail rendering, stage colors, ages
-  ui/hot_board.rs      AIHOT Hot table/detail rendering
-  ui/daily_board.rs    AIHOT Daily table/detail rendering, section colors
-  ui/reset_board.rs    Codex Resets calendar/table/detail rendering, status colors
-  ui/chart.rs       Shared horizontal chart infrastructure
-  ui/filter.rs      Per-board filter matching and filter cache helpers
-  ui/sort.rs        Sort keys, sort direction, and missing-value ordering
-  ui/state.rs       Runtime app state, selection, filters, views, and sorting
-  ui/chrome.rs      Tabs, header, footer, help overlay, loading/error screens
-  ui/test_helpers.rs   Test-only row constructors
-tests/fixtures/     Trimmed captures for every board used by parser tests
+```text
+src/cli.tsx          CLI options, snapshots and terminal lifecycle
+src/model.ts         Board registry, columns, row types, formatting and filtering
+src/data/client.ts   HTTP retries, cancellation and reset disk cache
+src/data/rsc.ts      RSC stream extraction, balanced scanners and reference resolution
+src/data/literal.ts  Restricted Slopalytics object-literal parser
+src/data/sources.ts  Parsers and row normalization for all seven boards
+src/data/demo.ts     Offline fixture preview data
+src/tui/app.tsx      Async loading, keyboard/mouse input and view state
+src/tui/screen.tsx   Tables, charts, calendar, details, help and chrome
+src/tui/layout.ts    Unicode cell fitting, wrapping and responsive layouts
+src/tui/state.ts     Selection, sorting, scrolling, calendar stats and mouse reports
+src/tui/help.ts      In-app key and metric reference
+scripts/build.ts     Standalone compilation and macOS signing
+scripts/smoke.ts     Version and offline snapshots in an isolated working directory
+scripts/package.ts   Release archives, checksums and complete asset verification
+scripts/release.ts   Release tag/version validation and commit resolution
+tests/ts/            Offline and opt-in live tests
+tests/fixtures/      Trimmed source captures for offline tests
 ```
 
 ## License

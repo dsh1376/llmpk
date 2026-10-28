@@ -5,131 +5,97 @@ on:
     tags:
       - "v*"
   workflow_dispatch:
+    inputs:
+      tag:
+        description: Existing release tag, for example v1.2.3
+        required: true
+        type: string
 
 concurrency:
-  group: release-${{ github.ref }}
+  group: release-${{ inputs.tag || github.ref_name }}
   cancel-in-progress: false
-
-env:
-  CARGO_TERM_COLOR: always
 
 permissions:
   contents: read
 
+defaults:
+  run:
+    shell: bash
+
 jobs:
-  verify:
-    name: Verify
-    runs-on: ubuntu-latest
+  prepare:
+    name: Resolve and validate release source
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    outputs:
+      tag: ${{ steps.release.outputs.tag }}
+      sha: ${{ steps.release.outputs.sha }}
+      prerelease: ${{ steps.release.outputs.prerelease }}
     steps:
       - uses: actions/checkout@v7
-      - uses: dtolnay/rust-toolchain@stable
-        with:
-          components: rustfmt, clippy
-      - uses: Swatinem/rust-cache@v2
-      - run: cargo fmt --all --check
-      - run: cargo clippy --locked --all-targets -- -D warnings
-      - run: cargo test --locked
-
-  build:
-    name: Build ${{ matrix.target }}
-    needs: verify
-    runs-on: ${{ matrix.os }}
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - os: ubuntu-latest
-            target: x86_64-unknown-linux-gnu
-          - os: macos-latest
-            target: aarch64-apple-darwin
-
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v7
-
-      - name: Install Rust
-        uses: dtolnay/rust-toolchain@stable
-        with:
-          targets: ${{ matrix.target }}
-
-      - name: Cache build
-        uses: Swatinem/rust-cache@v2
-        with:
-          key: ${{ matrix.target }}
-
-      - name: Build
-        run: cargo build --release --locked --target "${{ matrix.target }}"
-
-      - name: Package
-        shell: bash
-        run: |
-          set -euo pipefail
-          asset="llmpk-${{ matrix.target }}.tar.gz"
-          mkdir -p dist
-          tar -czf "dist/${asset}" -C "target/${{ matrix.target }}/release" llmpk
-          if command -v sha256sum >/dev/null 2>&1; then
-            (cd dist && sha256sum "${asset}" > "${asset}.sha256")
-          else
-            (cd dist && shasum -a 256 "${asset}" > "${asset}.sha256")
-          fi
-
-      - name: Upload artifact
-        uses: actions/upload-artifact@v7
-        with:
-          name: llmpk-${{ matrix.target }}
-          path: dist/*
-          if-no-files-found: error
-
-  publish:
-    name: Publish release
-    needs: build
-    runs-on: ubuntu-latest
-
-    permissions:
-      contents: write
-
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v7
         with:
           fetch-depth: 0
+          persist-credentials: false
 
-      - name: Resolve release tag
-        id: tag
-        run: |
-          set -euo pipefail
-          if [ "${GITHUB_REF_TYPE}" = "tag" ]; then
-            tag="${GITHUB_REF_NAME}"
-          else
-            # Manual dispatch carries no tag: use the manifest version and
-            # refuse to invent a tag that does not exist yet.
-            tag="v$(awk -F'"' '/^version = /{print $2; exit}' Cargo.toml)"
-            if ! git rev-parse --verify --quiet "refs/tags/${tag}" >/dev/null; then
-              echo "::error::tag ${tag} does not exist; push the tag, then re-run"
-              exit 1
-            fi
-          fi
-          echo "tag=${tag}" >> "$GITHUB_OUTPUT"
-
-      - name: Download artifacts
-        uses: actions/download-artifact@v8
+      - uses: oven-sh/setup-bun@v2
         with:
+          bun-version-file: .bun-version
+
+      - name: Resolve existing tag and validate its manifest
+        id: release
+        env:
+          RELEASE_TAG: ${{ inputs.tag || github.ref_name }}
+        run: bun run scripts/release.ts resolve "$RELEASE_TAG"
+
+  build:
+    needs: prepare
+    uses: ./.github/workflows/build.yml
+    with:
+      revision: ${{ needs.prepare.outputs.sha }}
+      release-tag: ${{ needs.prepare.outputs.tag }}
+
+  publish:
+    name: Publish verified assets
+    needs: [prepare, build]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    permissions:
+      contents: write
+    env:
+      RELEASE_TAG: ${{ needs.prepare.outputs.tag }}
+      RELEASE_SHA: ${{ needs.prepare.outputs.sha }}
+      PRERELEASE: ${{ needs.prepare.outputs.prerelease }}
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ needs.prepare.outputs.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version-file: .bun-version
+
+      - uses: actions/download-artifact@v8
+        with:
+          pattern: llmpk-*
           path: dist
           merge-multiple: true
 
-      - name: Add installer
-        run: |
-          chmod +x install.sh
-          cp install.sh dist/install.sh
+      - name: Add the installer from the release commit
+        run: cp install.sh dist/install.sh
 
-      - name: Publish GitHub release
-        env:
-          GH_TOKEN: ${{ github.token }}
+      - name: Verify complete asset inventory and checksums
+        run: bun run package:verify
+
+      - name: Confirm tag still identifies the built source
+        run: bun run scripts/release.ts verify "$RELEASE_TAG" "$RELEASE_SHA"
+
+      - name: Publish a new release
         run: |
-          set -euo pipefail
-          tag="${{ steps.tag.outputs.tag }}"
-          if gh release view "$tag" >/dev/null 2>&1; then
-            gh release upload "$tag" dist/* --clobber
-          else
-            gh release create "$tag" dist/* --verify-tag --title "$tag" --generate-notes
+          args=("$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" --verify-tag --target "$RELEASE_SHA" --title "$RELEASE_TAG" --generate-notes)
+          if [ "$PRERELEASE" = "true" ]; then
+            args+=(--prerelease)
           fi
+          gh release create "${args[@]}" dist/install.sh dist/*.tar.gz dist/*.tar.gz.sha256
