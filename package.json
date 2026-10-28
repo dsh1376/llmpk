@@ -1,6 +1,6 @@
 {
   "name": "llmpk",
-  "version": "0.6.2",
+  "version": "0.6.3",
   "description": "LLM leaderboards and AI news in your terminal",
   "type": "module",
   "license": "MIT",

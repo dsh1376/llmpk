@@ -187,7 +187,7 @@ test("interactive resize repaints displaced rows without keyboard input", async 
 });
 
 test("CLI offers terminal-free help, version and fixture snapshots", () => {
-  expect(cli("--version")).toEqual({ code: 0, output: "0.6.2\n", error: "" });
+  expect(cli("--version")).toEqual({ code: 0, output: "0.6.3\n", error: "" });
   expect(cli("--help").output).toContain("--no-mouse");
   const snapshot = cli(
     "--demo",
